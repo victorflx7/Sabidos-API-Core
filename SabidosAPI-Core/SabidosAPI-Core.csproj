@@ -21,7 +21,6 @@
   <ItemGroup>
     <None Include="Data\AppDbContext.cs" />
     <None Include="DTOs\UserResponseDto.cs" />
-    <None Include="Mappings\UserProfile.cs" />
     <None Include="Models\User.cs" />
     <None Include="Services\UserService.cs" />
   </ItemGroup>
@@ -42,6 +41,10 @@
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Mappings\" />
   </ItemGroup>
 
 </Project>
