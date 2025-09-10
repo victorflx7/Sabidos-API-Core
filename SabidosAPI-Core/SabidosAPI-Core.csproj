@@ -11,13 +11,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Mappings\**" />
-    <Content Remove="Mappings\**" />
-    <EmbeddedResource Remove="Mappings\**" />
-    <None Remove="Mappings\**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Compile Remove="Data\AppDbContext.cs" />
     <Compile Remove="DTOs\UserResponseDto.cs" />
     <Compile Remove="Models\User.cs" />
