@@ -1,4 +1,4 @@
-using FirebaseJwtApi.Models;
+using SabidosAPI_Core.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace SabidosAPI_Core.Data;
