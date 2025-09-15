@@ -4,6 +4,8 @@ namespace SabidosAPI_Core.DTOs
 {
     public class ResumoResponseDto
     {
+            
+        public int Id { get; set; }
         public string Titulo { get; set; } = string.Empty;
         public string Conteudo { get; set; } = string.Empty;
         public string AuthorUid { get; set; } = string.Empty;
