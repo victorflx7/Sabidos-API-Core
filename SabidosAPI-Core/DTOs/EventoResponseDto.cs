@@ -9,7 +9,7 @@ namespace SabidosAPI_Core.DTOs
 
         [Required]
         [StringLength(160)]
-        public string TitleEvet { get; set; } = string.Empty;
+        public string TitleEvent { get; set; } = string.Empty;
         [Required]
         public string AuthorUid { get; set; } = string.Empty;
         [Required]
