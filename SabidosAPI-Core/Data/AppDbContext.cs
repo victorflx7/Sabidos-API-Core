@@ -8,14 +8,20 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<User> Users => Set<User>();
-    public DbSet<Resumo> Resumos => Set<Post>();
-    public DbSet<Evento> Eventos => Set<Post>();
-    public DbSet<Pomodoro> Pomodoros => Set<Post>();
-    public DbSet<Flashcard> Flashcards => Set<Post>();
+    public DbSet<Resumo> Resumos => Set<Resumo>();
+    public DbSet<Evento> Eventos => Set<Evento>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+
         modelBuilder.Entity<User>().HasIndex(u => u.FirebaseUid).IsUnique();
+
+        modelBuilder.Entity<Evento>()
+            .HasOne(e => e.User)
+            .WithMany()
+            .HasPrincipalKey(u => u.FirebaseUid)
+            .HasForeignKey(e => e.AuthorUid);
+
         base.OnModelCreating(modelBuilder);
     }
 }
