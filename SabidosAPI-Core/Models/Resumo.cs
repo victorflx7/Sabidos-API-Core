@@ -5,6 +5,9 @@ namespace SabidosAPI_Core.Models
 {
     public class Resumo
     {
+        [Key]
+        public int Id { get; set; }
+
         [Required]
         [MaxLength(160)]
         public string Titulo { get; set; } = string.Empty;
