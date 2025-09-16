@@ -16,6 +16,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(UserProfile));
+builder.Services.AddAutoMapper(typeof(ResumoProfile));
 
 // Services (por favor colocar todos neste grupo)
 builder.Services.AddScoped<UserService>();
