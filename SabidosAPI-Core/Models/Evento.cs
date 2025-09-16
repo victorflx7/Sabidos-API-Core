@@ -17,5 +17,7 @@ namespace SabidosAPI_Core.Models
         [Required]
         [MaxLength(160)]
         public string AuthorUid { get; set; } = string.Empty;
+
+        public User User { get; set; } = null!;
     }
 }
