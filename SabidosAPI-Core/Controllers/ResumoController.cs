@@ -51,6 +51,34 @@ public class PostsController : ControllerBase
     }
 
     
+    [HttpPut("{id}")]
+    public async Task<ActionResult<ResumoResponseDto>> Update(int id, [FromBody] ResumoCreateUpdateDto dto)
+    {
+        var uid = User.FindFirst("user_id")?.Value ?? "unknown";
+
+        var updatedResumo = await _service.UpdateResumoAsync(id, uid, dto);
+        if (updatedResumo == null)
+            return NotFound(new { message = "Post não encontrado ou você não tem permissão para atualizar." });
+
+        return Ok(updatedResumo);
+    }
+
+    
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var uid = User.FindFirst("user_id")?.Value ?? "unknown";
+
+        var deleted = await _service.DeleteResumoAsync(id, uid);
+        if (!deleted)
+            return NotFound(new { message = "Post não encontrado ou você não tem permissão para deletar." });
+
+        return NoContent();
+    }
+}
+
+
+    
 
     
 }
