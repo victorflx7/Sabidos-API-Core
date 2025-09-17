@@ -17,10 +17,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(UserProfile));
 builder.Services.AddAutoMapper(typeof(ResumoProfile));
+builder.Services.AddAutoMapper(typeof(EventoProfile));
 
 // Services (por favor colocar todos neste grupo)
 builder.Services.AddScoped<UserService>();
-
+builder.Services.AddScoped<EventoService>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
