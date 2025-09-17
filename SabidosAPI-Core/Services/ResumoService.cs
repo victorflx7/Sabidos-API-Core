@@ -30,14 +30,21 @@ public class ResumoService
     }
 
    
-    public async Task<ResumoResponseDto?> GetresumoByIdAsync(int id)
+    public async Task<ResumoResponseDto?> UpdateresumoAsync(int resumoId, string userId, ResumoCreateUpdateDto dto)
     {
         var resumo = await _context.resumos
             .Include(p => p.User)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == resumoId && p.Id == userId);
 
         if (resumo == null) return null;
+
+        _mapper.Map(dto, resumo);
+        resumo.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
         return _mapper.Map<ResumoResponseDto>(resumo);
     }
 
+   
+   
     
