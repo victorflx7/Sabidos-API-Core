@@ -45,6 +45,18 @@ public class ResumoService
         return _mapper.Map<ResumoResponseDto>(resumo);
     }
 
-   
-   
     
+    public async Task<bool> DeleteresumoAsync(int resumoId, string userId)
+    {
+        var resumo = await _context.resumos.FirstOrDefaultAsync(p => p.Id == resumoId && p.Id == userId);
+        if (resumo == null) return false;
+
+        _context.resumos.Remove(resumo);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+}
+
+
+
+
