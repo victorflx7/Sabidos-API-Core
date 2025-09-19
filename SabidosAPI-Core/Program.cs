@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SabidosAPI_Core.Data;
 using SabidosAPI_Core.Mappings;
+using SabidosAPI_Core.Profiles;
 using SabidosAPI_Core.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,10 +16,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // AutoMapper
+
 builder.Services.AddAutoMapper(typeof(UserProfile));
 builder.Services.AddAutoMapper(typeof(ResumoProfile));
 builder.Services.AddAutoMapper(typeof(EventoProfile));
-
+builder.Services.AddLogging();
+builder.Services.AddAuthorization();
 // Services (por favor colocar todos neste grupo)
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<EventoService>();
