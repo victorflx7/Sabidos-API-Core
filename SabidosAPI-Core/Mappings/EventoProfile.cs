@@ -11,8 +11,7 @@ namespace SabidosAPI_Core.Mappings
             // Model -> ResponseDto
             CreateMap<Evento, EventoResponseDto>()
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id.ToString()))
-                .ForMember(dest => dest.TitleEvet, opt => opt.MapFrom(src => src.TitleEvent ?? string.Empty))
-                .ForMember(dest => dest.AuthorUid, opt => opt.MapFrom(src => src.AuthorUid))
+                .ForMember(dest => dest.TitleEvent, opt => opt.MapFrom(src => src.TitleEvent ?? string.Empty))
                 .ForMember(dest => dest.DataEvento, opt => opt.MapFrom(src => src.DataEvento.HasValue ? src.DataEvento.Value : default));
 
             // CreateDto -> Model

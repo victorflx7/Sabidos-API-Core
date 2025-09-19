@@ -37,9 +37,15 @@ namespace SabidosAPI_Core.Services
             return _mapper.Map<EventoResponseDto>(evento);
         }
 
-        public async Task<EventoResponseDto> CreateEventoAsync(EventoResponseDto eventoDto)
+        public async Task<int> GetEventosCountByUserAsync(string authorUid)
+        {
+            return await _context.Eventos.CountAsync(e => e.AuthorUid == authorUid);
+        }
+        public async Task<EventoResponseDto> CreateEventoAsync(EventoResponseDto eventoDto ,string authorUid)
         {
             var evento = _mapper.Map<Models.Evento>(eventoDto);
+            evento.AuthorUid = authorUid;
+
             _context.Eventos.Add(evento);
             await _context.SaveChangesAsync();
             return _mapper.Map<EventoResponseDto>(evento);
@@ -64,6 +70,8 @@ namespace SabidosAPI_Core.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+
 
         //public Task DeleteEventoAsync(int id)
         //{
@@ -95,10 +103,7 @@ namespace SabidosAPI_Core.Services
         //    return await _context.Eventos.CountAsync();
         //}
 
-        //public async Task<int> GetEventosCountByUserAsync(string authorUid)
-        //{
-        //    return await _context.Eventos.CountAsync(e => e.AuthorUid == authorUid);
-        //}
+
 
         //public async Task<List<EventoResponseDto>> GetRecentEventosAsync(int count)
         //{
