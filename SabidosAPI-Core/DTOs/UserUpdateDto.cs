@@ -9,5 +9,8 @@ namespace SabidosAPI_Core.DTOs
         /// de perfil do usuário vindo do front end e do subabase 
         [StringLength(160)]
         public string? Name { get; set; }
+
+        //[Url]
+        //public string? PhotoUrl { get; set; }  // link de imagem (pode vir do Firebase ou Supabase)
     }
 }

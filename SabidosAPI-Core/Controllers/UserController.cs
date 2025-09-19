@@ -12,29 +12,38 @@ namespace SabidosAPI_Core.Controllers
         private readonly UserService _service;
         public UserController(UserService service) => _service = service;
 
-        /// Retorna o perfil do usuário autenticado (dados locais no SQL Server).
+        /// Retorna o perfil do usuário autenticado
+        /// Se não existir no SQL, cria automaticamente
         [HttpGet("me")]
         [Authorize]
         public async Task<IActionResult> GetMe()
         {
             var uid = User.FindFirst("user_id")?.Value;
+            var email = User.FindFirst("email")?.Value;
+
             if (uid is null) return Unauthorized();
-            var me = await _service.GetUserByFirebaseUidAsync(uid);
-            return me is null ? NotFound(new { message = "Usuário não encontrado." }) : Ok(me);
+
+            // Se não existe, cria com dados mínimos
+            var me = await _service.CreateOrUpdateAsync(uid, email);
+
+            return Ok(me);
         }
 
-        /// Cria/atualiza o perfil local do usuário autenticado
+        /// Atualiza perfil do usuário autenticado
         [HttpPost("profile")]
         [Authorize]
         public async Task<IActionResult> UpsertProfile([FromBody] UserUpdateDto dto)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
             var uid = User.FindFirst("user_id")?.Value;
             var email = User.FindFirst("email")?.Value;
+
             if (uid is null) return Unauthorized();
+
             var me = await _service.CreateOrUpdateAsync(uid, email, dto);
+
             return Ok(me);
         }
-
     }
 }
