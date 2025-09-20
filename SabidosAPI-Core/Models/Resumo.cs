@@ -30,5 +30,7 @@ namespace SabidosAPI_Core.Models
 
         [Required]
         public DateTime UpdatedAt { get; set; }
+
+        public User User { get; set; } = null!;
     }
 }

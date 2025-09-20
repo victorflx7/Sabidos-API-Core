@@ -23,6 +23,14 @@ public class AppDbContext : DbContext
             .HasForeignKey(e => e.AuthorUid);
 
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Resumo>()
+           .HasOne(e => e.User)
+           .WithMany()
+           .HasPrincipalKey(u => u.FirebaseUid)
+           .HasForeignKey(e => e.AuthorUid);
+
+        base.OnModelCreating(modelBuilder);
     }
 }
   
