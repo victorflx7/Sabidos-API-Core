@@ -9,11 +9,11 @@ using SabidosAPI_Core.Services;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize] 
-public class PostsController : ControllerBase
+public class ResumosController : ControllerBase
 {
     private readonly ResumoService _service;
 
-    public PostsController(ResumoService service)
+    public ResumosController(ResumoService service)
     {
         _service = service;
     }
