@@ -9,10 +9,12 @@
 
   <ItemGroup>
     <Compile Remove="Integration\CustomWebApplicationFactory.cs" />
+    <Compile Remove="Unit\UserServiceTests.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="Integration\CustomWebApplicationFactory.cs" />
+    <None Include="Unit\UserServiceTests.cs" />
   </ItemGroup>
 
   <ItemGroup>
