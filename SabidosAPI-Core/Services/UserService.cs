@@ -35,7 +35,7 @@ public class UserService
         }
     }
 
-=
+
     public async Task<UserResponseDto> CreateOrUpdateAsync(string firebaseUid, string? email, UserUpdateDto? dto = null)
     {
         using var transaction = await _db.Database.BeginTransactionAsync();
