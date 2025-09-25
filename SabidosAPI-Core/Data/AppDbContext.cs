@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Resumo> Resumos => Set<Resumo>();
     public DbSet<Evento> Eventos => Set<Evento>();
+    public DbSet<Flashcard> Flashcards => Set<Flashcard>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,6 +32,14 @@ public class AppDbContext : DbContext
            .HasForeignKey(e => e.AuthorUid);
 
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Flashcard>()
+           .HasOne(e => e.User)
+           .WithMany()
+           .HasPrincipalKey(u => u.FirebaseUid)
+           .HasForeignKey(e => e.AuthorUid);
+
+        base.OnModelCreating(modelBuilder);
     }
 }
-  
+
