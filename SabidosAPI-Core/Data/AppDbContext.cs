@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<Resumo> Resumos => Set<Resumo>();
     public DbSet<Evento> Eventos => Set<Evento>();
     public DbSet<Flashcard> Flashcards => Set<Flashcard>();
+    public DbSet<Pomodoro> Pomodoros => Set<Pomodoro>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +39,14 @@ public class AppDbContext : DbContext
            .WithMany()
            .HasPrincipalKey(u => u.FirebaseUid)
            .HasForeignKey(e => e.AuthorUid);
+
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Pomodoro>()
+            .HasOne(e => e.User)
+            .WithMany()
+            .HasPrincipalKey(u => u.FirebaseUib)
+            .HasForeignKey(e => e.AuthorUid);
 
         base.OnModelCreating(modelBuilder);
     }
