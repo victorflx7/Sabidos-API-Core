@@ -43,8 +43,8 @@ namespace SabidosAPI_Core.Services
 
         public async Task<FlashcardResponseDto> CreateFlashcardAsync(FlashcardCreateUpdateDto flashcardDto, string authorUid, string nameAuthor)
         {
-            var flashcard = _mapper.Map<Resumo>(flashcardDto);
-            _context.Resumos.Add(flashcard);
+            var flashcard = _mapper.Map<Flashcard>(flashcardDto);
+            _context.Flashcards.Add(flashcard);
             flashcard.AuthorUid = authorUid;
             flashcard.AuthorName = nameAuthor;
             flashcard.CreatedAt = DateTime.UtcNow;
