@@ -34,5 +34,16 @@ namespace SabidosAPI_Core.Services
                 .Where(p => p.AuthorUid == authorUid)
                 .SumAsync(p => p.Duration);
         }
+
+        public async Task<FlashcardResponseDto> CreateAsync(PomoCreateDto dto, string authorUid)
+        {
+            var pomodoro = _mapper.Map<Pomodoro>(dto);
+            _context.Pomodoros.Add(pomodoro);
+            flashcard.AuthorUid = authorUid;
+            flashcard.CreatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return _mapper.Map<PomoResponseDto>(pomodoro);
+        }
     }
 }
