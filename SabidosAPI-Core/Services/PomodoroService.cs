@@ -17,7 +17,7 @@ namespace SabidosAPI_Core.Services
             _mapper = mapper;
         }
 
-        public async Task<List<FlashcardResponseDto>> GetAllAsync(string? userUId = null)
+        public async Task<List<PomoResponseDto>> GetAllAsync(string? userUId = null)
         {
             var query = _context.Pomodoros.Include(p => p.User).AsQueryable();
 
@@ -35,12 +35,12 @@ namespace SabidosAPI_Core.Services
                 .SumAsync(p => p.Duration);
         }
 
-        public async Task<FlashcardResponseDto> CreateAsync(PomoCreateDto dto, string authorUid)
+        public async Task<PomoResponseDto> CreateAsync(PomoCreateDto dto, string authorUid)
         {
             var pomodoro = _mapper.Map<Pomodoro>(dto);
             _context.Pomodoros.Add(pomodoro);
-            flashcard.AuthorUid = authorUid;
-            flashcard.CreatedAt = DateTime.UtcNow;
+            pomodoro.AuthorUid = authorUid;
+            pomodoro.CreatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
             return _mapper.Map<PomoResponseDto>(pomodoro);
