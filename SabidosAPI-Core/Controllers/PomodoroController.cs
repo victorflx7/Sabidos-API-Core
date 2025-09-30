@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using SabidosAPI_Core.Services;
 using SabidosAPI_Core.Dtos;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using SabidosAPI_Core.DTOs;
+using SabidosAPI_Core.Models;
 
 namespace SabidosAPI_Core.Controllers
 {
