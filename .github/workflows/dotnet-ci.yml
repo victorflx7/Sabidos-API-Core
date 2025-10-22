@@ -1,0 +1,51 @@
+name: .NET CI - Testes Unitários
+
+on:
+  push:
+    # Rodar em todos os pushes para 'main' e 'develop'
+    branches: [ main, develop ]
+  pull_request:
+    # Rodar em todos os Pull Requests que miram em 'main' e 'develop'
+    branches: [ main, develop ]
+
+jobs:
+  build-and-test:
+    # Usar a imagem padrão do Ubuntu
+    runs-on: ubuntu-latest
+    
+    # Define as permissões para o token, se você for usar artefatos ou dependências privadas
+    permissions:
+      contents: read
+
+    steps:
+    - name: 1. Checkout do Código
+      # Baixa o código do seu repositório
+      uses: actions/checkout@v4
+
+    - name: 2. Configurar .NET SDK
+      # Usa a versão 9.x do SDK que você está utilizando
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.x'
+
+    - name: 3. Restore das Dependências
+      # O restore é crucial, pois instala todos os pacotes NuGet
+      run: dotnet restore
+
+    - name: 4. Build da Solução
+      # Compila todos os projetos na sua solução
+      run: dotnet build --no-restore --configuration Release
+
+    - name: 5. Executar Testes Unitários e Gerar Cobertura (Opcional)
+      # Este passo executa todos os projetos de teste
+      # A flag --no-build garante que ele use o que foi compilado no passo anterior
+      run: dotnet test --no-build --configuration Release --verbosity normal
+        
+    # --- Opcional: Publicar Resultados de Teste (Requer um arquivo de relatório) ---
+    # - name: 6. Publicar Resultados de Teste (Se você usar um formato de relatório)
+    #   uses: dorny/test-reporter@v1
+    #   if: success() || failure() # Roda mesmo se os testes falharem
+    #   with:
+    #     name: Testes Unitários
+    #     path: '**/*TestResults.xml' # Depende de como você configura o seu projeto de teste para gerar XML
+    #     reporter: dotnet-trx
