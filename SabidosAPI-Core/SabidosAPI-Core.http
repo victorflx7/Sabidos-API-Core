@@ -3,6 +3,7 @@
 @token = SEU_JWT_AQUI
 // Execute o comando abaixo para criar um token válido e coloque na variável acima para realizar os testes 
 // dotnet user-jwts create
+// dotnet user-jwts create --claim "user_id=12345" --claim "email=teste.teste00@gmail.com"
 // Copie o Token
 // Cole na variável acima no lugar de SEU_JWT_AQUI
 @contentType = application/json
