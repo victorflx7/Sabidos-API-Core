@@ -1,6 +1,227 @@
-@SabidosAPI_Core_HostAddress = http://localhost:5169
+# Variáveis de ambiente
+@baseUrl = https://localhost:7001
+@token = SEU_JWT_AQUI
+// Execute o comando abaixo para criar um token válido e coloque na variável acima para realizar os testes 
+// dotnet user-jwts create
+// dotnet user-jwts create --claim "user_id=12345" --claim "email=teste.teste00@gmail.com"
+// Copie o Token
+// Cole na variável acima no lugar de SEU_JWT_AQUI
+@contentType = application/json
 
-GET {{SabidosAPI_Core_HostAddress}}/weatherforecast/
+### Endpoint padrão (Exemplo)
+# Weather Forecast
+GET http://localhost:5169/weatherforecast/
 Accept: application/json
 
 ###
+
+# =======================================================
+# 2. PERFIL DO USUÁRIO AUTENTICADO
+# Requer o token de autenticação (JWT)
+# =======================================================
+
+# 2.1 Meu perfil (GET /me)
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{token}}
+
+###
+
+# 2.2 Atualizar perfil (POST /profile)
+POST {{baseUrl}}/api/users/profile
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "nome": "João da Silva",
+  "telefone": "+55 11 91234-5678"
+}
+
+###
+
+# =======================================================
+# 4. RESUMOS (CRUD)
+# Requer o token de autenticação
+# =======================================================
+
+# 4.1 Pegar todos os resumos
+GET {{baseUrl}}/api/resumos
+Authorization: Bearer {{token}}
+
+###
+
+# 4.2 Pegar resumo por ID
+GET {{baseUrl}}/api/resumos/1
+Authorization: Bearer {{token}}
+
+###
+
+# 4.3 Contar resumos
+GET {{baseUrl}}/api/resumos/count
+Authorization: Bearer {{token}}
+
+###
+
+# 4.4 Criar resumo
+POST {{baseUrl}}/api/resumos
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "titulo": "Resumo de ASP.NET Core",
+  "conteudo": "Explicando controllers, services e DTOs."
+}
+
+###
+
+# 4.5 Atualizar resumo
+PUT {{baseUrl}}/api/resumos/1
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "titulo": "Resumo atualizado",
+  "conteudo": "Agora com melhorias no controller e boas práticas."
+}
+
+###
+
+# 4.6 Deletar resumo
+DELETE {{baseUrl}}/api/resumos/1
+Authorization: Bearer {{token}}
+
+###
+
+# =======================================================
+# 5. EVENTOS (CRUD)
+# Requer o token de autenticação
+# =======================================================
+
+# 5.1 Pegar todos os eventos
+GET {{baseUrl}}/api/eventos
+Authorization: Bearer {{token}}
+
+###
+
+# 5.2 Pegar evento por ID
+GET {{baseUrl}}/api/eventos/1
+Authorization: Bearer {{token}}
+
+###
+
+# 5.3 Contar eventos
+GET {{baseUrl}}/api/eventos/count
+Authorization: Bearer {{token}}
+
+###
+
+# 5.4 Criar evento
+POST {{baseUrl}}/api/eventos
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "titulo": "Evento de Teste",
+  "descricao": "Primeiro evento cadastrado via API",
+  "data": "2025-10-01T19:00:00"
+}
+
+###
+
+# 5.5 Atualizar evento
+PUT {{baseUrl}}/api/eventos/1
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "titulo": "Evento Atualizado",
+  "descricao": "Atualização do evento via API",
+  "data": "2025-10-05T14:30:00"
+}
+
+###
+
+# 5.6 Deletar evento
+DELETE {{baseUrl}}/api/eventos/1
+Authorization: Bearer {{token}}
+
+###
+
+# =======================================================
+# 6. FLASHCARDS (CRUD)
+# Requer o token de autenticação
+# =======================================================
+
+# 6.1 Listar flashcards
+GET {{baseUrl}}/api/flashcard
+Authorization: Bearer {{token}}
+
+###
+
+# 6.2 Obter flashcard por ID
+GET {{baseUrl}}/api/flashcard/1
+Authorization: Bearer {{token}}
+
+###
+
+# 6.3 Contar flashcards
+GET {{baseUrl}}/api/flashcard/count
+Authorization: Bearer {{token}}
+
+###
+
+# 6.4 Criar flashcard
+POST {{baseUrl}}/api/flashcard
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "pergunta": "O que é ASP.NET Core?",
+  "resposta": "É um framework multiplataforma para desenvolvimento web."
+}
+
+###
+
+# 6.5 Atualizar flashcard
+PUT {{baseUrl}}/api/flashcard/1
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "pergunta": "O que é Entity Framework?",
+  "resposta": "Um ORM para .NET que facilita o acesso ao banco de dados."
+}
+
+###
+
+# 6.6 Deletar flashcard
+DELETE {{baseUrl}}/api/flashcard/1
+Authorization: Bearer {{token}}
+
+###
+
+# =======================================================
+# 7. POMODORO
+# Requer o token de autenticação
+# =======================================================
+
+# 7.1 Listar pomodoros
+GET {{baseUrl}}/api/pomodoro
+Authorization: Bearer {{token}}
+
+###
+
+# 7.2 Contar tempo total
+GET {{baseUrl}}/api/pomodoro/count-time
+Authorization: Bearer {{token}}
+
+###
+
+# 7.3 Criar pomodoro
+POST {{baseUrl}}/api/pomodoro
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "duracao": 25,
+  "descricao": "Sessão de foco em C#"
+}
