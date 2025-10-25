@@ -111,9 +111,9 @@ public class FlashcardServiceTests
     public async Task CreateFlashcardAsync_ComDadosValidos_DeveSalvarERetornarDto()
     {
         // Arrange
-        var createDto = new FlashcardCreateUpdateDto { Front = "Pergunta", Back = "Resposta" };
-        var flashcardModel = new Flashcard { Id = 5, Front = "Pergunta" };
-        var responseDto = new FlashcardResponseDto { Id = 5, Front = "Pergunta" };
+        var createDto = new FlashcardCreateUpdateDto { Frente = "Pergunta", Verso = "Resposta" };
+        var flashcardModel = new Flashcard { Id = 5, Frente = "Pergunta" };
+        var responseDto = new FlashcardResponseDto { Id = 5, Frente = "Pergunta" };
 
         _mockMapper.Setup(m => m.Map<Flashcard>(createDto)).Returns(flashcardModel);
         _mockMapper.Setup(m => m.Map<FlashcardResponseDto>(flashcardModel)).Returns(responseDto);
@@ -126,7 +126,7 @@ public class FlashcardServiceTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal(responseDto.Front, result.Front);
+        Assert.Equal(responseDto.Frente, result.Frente);
         _mockContext.Verify(c => c.Flashcards.Add(It.IsAny<Flashcard>()), Times.Once);
         _mockContext.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         // Verifica se o AuthorUid e AuthorName foram setados no modelo

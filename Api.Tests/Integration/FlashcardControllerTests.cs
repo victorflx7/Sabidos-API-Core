@@ -68,7 +68,7 @@ public class FlashcardControllerTests : IClassFixture<CustomWebApplicationFactor
     {
         // Arrange
         SetAuthorizationHeader();
-        var createDto = new FlashcardCreateUpdateDto { Front = "Qual é o DTO?", Back = "FlashcardResponseDto" };
+        var createDto = new FlashcardCreateUpdateDto { Frente = "Qual é o DTO?", Verso = "FlashcardResponseDto" };
         var jsonContent = new StringContent(JsonConvert.SerializeObject(createDto), Encoding.UTF8, "application/json");
 
         // Act
@@ -89,7 +89,7 @@ public class FlashcardControllerTests : IClassFixture<CustomWebApplicationFactor
     {
         // Arrange
         _client.DefaultRequestHeaders.Authorization = null;
-        var createDto = new FlashcardCreateUpdateDto { Front = "Qual é o DTO?", Back = "FlashcardResponseDto" };
+        var createDto = new FlashcardCreateUpdateDto { Frente = "Qual é o DTO?", Verso = "FlashcardResponseDto" };
         var jsonContent = new StringContent(JsonConvert.SerializeObject(createDto), Encoding.UTF8, "application/json");
 
         // Act
