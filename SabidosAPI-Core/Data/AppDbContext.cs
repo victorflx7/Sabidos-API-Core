@@ -45,7 +45,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Pomodoro>()
             .HasOne(e => e.User)
             .WithMany()
-            .HasPrincipalKey(u => u.FirebaseUib)
+            .HasPrincipalKey(u => u.FirebaseUid)
             .HasForeignKey(e => e.AuthorUid);
 
         base.OnModelCreating(modelBuilder);
