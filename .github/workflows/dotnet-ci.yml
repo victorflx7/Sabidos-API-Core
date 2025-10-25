@@ -31,7 +31,7 @@ jobs:
     - name: 3. Restore das Dependências
       # O restore é crucial, pois instala todos os pacotes NuGet
       run:  dotnet restore
-      working-directory: src/Sabidos-API-Core/SabidosAPI-Core
+      working-directory: Sabidos-API-Core/SabidosAPI-Core
       
 
     - name: 4. Build da Solução
