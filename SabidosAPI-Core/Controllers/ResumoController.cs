@@ -19,19 +19,23 @@ public class ResumosController : ControllerBase
         _service = service;
     }
 
+ 
     [HttpGet]
     public async Task<ActionResult<List<ResumoResponseDto>>> GetAll()
     {
-        // 1. CHECAGEM CRÍTICA: Se o usuário não está autenticado, pare aqui.
-        // Isso deve ser equivalente ao que o [Authorize] deveria fazer, mas garante o 401 no teste.
-        if (!User.Identity.IsAuthenticated) { return Unauthorized(); } // <<< LINHA ADICIONADA/CORRIGIDA
+        // CHECAGEM CRÍTICA 1: Se o Identity não estiver presente OU não estiver autenticado, retorne 401.
+        // Esta é a forma mais robusta de garantir que o teste Unauthorized passe.
+        if (User.Identity is null || !User.Identity.IsAuthenticated)
+        {
+            return Unauthorized();
+        }
 
-        // 2. Extração do UID, agora que a autenticação está confirmada.
         var uid = User.FindFirst("user_id")?.Value
                  ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                  ?? User.FindFirst("sub")?.Value;
 
-        // 3. Checagem de segurança (mantida para robustez), mas que não deve mais falhar após o passo 1.
+        // CHECAGEM CRÍTICA 2: Garante que o UID extraído não seja nulo, vazio ou só espaços.
+        // Mantida por segurança, mas o passo 1 deve resolver o teste.
         if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
 
         try
