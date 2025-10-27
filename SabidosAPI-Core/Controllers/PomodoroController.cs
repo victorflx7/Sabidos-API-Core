@@ -1,10 +1,8 @@
+using System.Collections.Generic;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using SabidosAPI_Core.Services;
 using SabidosAPI_Core.Dtos;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
-using SabidosAPI_Core.DTOs;
-using SabidosAPI_Core.Models;
 
 namespace SabidosAPI_Core.Controllers
 {
@@ -22,8 +20,12 @@ namespace SabidosAPI_Core.Controllers
         [HttpGet]
         public async Task<ActionResult<List<PomoResponseDto>>> GetAll()
         {
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (uid is null) { return Unauthorized(); }
+            var uid = User.FindFirst("user_id")?.Value
+                     ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                     ?? User.FindFirst("sub")?.Value;
+
+            // CORRIGIDO: Checagem robusta de autorização
+            if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
 
             var result = await _service.GetAllAsync(uid);
             return Ok(result);
@@ -32,8 +34,12 @@ namespace SabidosAPI_Core.Controllers
         [HttpGet("count-time")]
         public async Task<ActionResult<int>> CountTime()
         {
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (uid is null) { return Unauthorized(); }
+            var uid = User.FindFirst("user_id")?.Value
+                     ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                     ?? User.FindFirst("sub")?.Value;
+
+            // CORRIGIDO: Checagem robusta de autorização
+            if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
 
             var total = await _service.CountTimeAsync(uid);
             return Ok(total);
@@ -42,8 +48,13 @@ namespace SabidosAPI_Core.Controllers
         [HttpPost]
         public async Task<ActionResult<PomoResponseDto>> Create([FromBody] PomoCreateDto dto)
         {
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (uid is null) { return Unauthorized(); }
+            var uid = User.FindFirst("user_id")?.Value
+                     ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                     ?? User.FindFirst("sub")?.Value;
+
+            // CORRIGIDO: Checagem robusta de autorização
+            if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
+
             var created = await _service.CreateAsync(dto, uid);
             return CreatedAtAction(nameof(GetAll), new { id = created.Id }, created);
         }
