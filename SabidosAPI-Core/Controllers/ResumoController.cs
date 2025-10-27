@@ -1,10 +1,11 @@
-using System.Collections.Generic;
-using System.Security.Claims;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SabidosAPI_Core.DTOs;
+using SabidosAPI_Core.Models;
 using SabidosAPI_Core.Services;
+using System.Collections.Generic;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -26,13 +27,13 @@ public class ResumosController : ControllerBase
                  ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                  ?? User.FindFirst("sub")?.Value;
 
-        // CORREÇÃO CRÍTICA FINAL: Use string.IsNullOrEmpty para cobrir null E string vazia ("")
+        // CORREÇÃO FINAL: Use string.IsNullOrEmpty para cobrir null OU string vazia
         if (string.IsNullOrEmpty(uid)) { return Unauthorized(); } // <<< LINHA CORRIGIDA
 
         try
         {
-            var eventos = await _service.GetAllResumosAsync(uid);
-            return Ok(eventos);
+            var resumos = await _service.GetAllResumosAsync(uid);
+            return Ok(resumos);
         }
         catch (Exception ex)
         {
