@@ -36,13 +36,15 @@ public class ResumoControllerTests : IClassFixture<CustomWebApplicationFactory<P
     public async Task GetAll_SemAutorizacao_DeveRetornar401Unauthorized()
     {
         // Arrange
-        _client.DefaultRequestHeaders.Authorization = null; // Remove a autorização
+        // GARANTE que qualquer cabeçalho de autorização padrão seja removido ANTES da chamada
+        _client.DefaultRequestHeaders.Authorization = null; // <<< LINHA CHAVE
 
         // Act
         var response = await _client.GetAsync(Endpoint);
 
         // Assert
-        // Este teste falhou antes e deve passar após a correção no CustomWebApplicationFactory
+        // O erro retornou OK. Você pode temporariamente mudar para OK para ver se o código de status
+        // da sua API mudou para 200, mas o esperado é 401.
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 

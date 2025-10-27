@@ -22,7 +22,9 @@ public class ResumoServiceTests
     public ResumoServiceTests()
     {
         _mockMapper = new Mock<IMapper>();
-        _mockContext = new Mock<AppDbContext>();
+        var options = new DbContextOptionsBuilder<AppDbContext>().Options;
+        _mockContext = new Mock<AppDbContext>(options); 
+
         _service = new ResumoService(_mockContext.Object, _mockMapper.Object);
     }
 
