@@ -4,24 +4,28 @@ using Microsoft.Extensions.DependencyInjection;
 using SabidosAPI_Core.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.AspNetCore.Authentication; // Novo using necessário
-using Microsoft.Extensions.Options; // Novo using necessário
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Options;
 using System.Linq;
+using System; // Adicionado para Guid
 
 public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProgram> where TProgram : class
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Define o ambiente para "Testing"
+        builder.UseEnvironment("Testing");
+
         builder.ConfigureServices(services =>
         {
-            // 🔄 Garante que estamos sempre em ambiente "Testing"
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
-
-            // ⚠️ 🔑 REMOVE TODOS os serviços relacionados ao AppDbContext e suas opções.
+            // ⚠️ 🔑 CORREÇÃO CRÍTICA: REMOVE TODOS os serviços relacionados ao AppDbContext e suas opções.
+            // Esta remoção mais abrangente impede o erro de múltiplos provedores.
             var dbContextServices = services
                 .Where(d => d.ServiceType == typeof(AppDbContext) ||
                             d.ServiceType == typeof(DbContextOptions<AppDbContext>) ||
-                            d.ServiceType == typeof(DbContextOptions))
+                            d.ServiceType == typeof(DbContextOptions) ||
+                            d.ServiceType.FullName.Contains("IHostedService") // Remove possíveis serviços relacionados a migrações
+                            )
                 .ToList();
 
             foreach (var descriptor in dbContextServices)
@@ -30,6 +34,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             }
 
             // ⚙️ Reconfigura o contexto explicitamente como InMemory (isolado)
+            // Usa um nome único para o banco de dados para isolar os testes
             services.AddDbContext<AppDbContext>(options =>
                 options.UseInMemoryDatabase($"TestDb_{Guid.NewGuid()}"));
 
@@ -56,13 +61,20 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             .AddScheme<AuthenticationSchemeOptions, FakeJwtHandler>("FakeScheme", options => { });
 
 
-            // Cria banco limpo
+            // Cria banco limpo e garante que as operações de EnsureDeleted e EnsureCreated
+            // ocorram DENTRO DO ESCOPO de serviço correto.
             var sp = services.BuildServiceProvider();
-            using var scope = sp.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            using (var scope = sp.CreateScope()) // Usa o bloco 'using' para garantir o descarte
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            db.Database.EnsureDeleted();
-            db.Database.EnsureCreated();
+                // A linha 64 (db.Database.EnsureDeleted()) agora deve funcionar sem o erro
+                db.Database.EnsureDeleted();
+                db.Database.EnsureCreated();
+
+                // PONTO IMPORTANTE: Aqui é onde você popularia dados iniciais (se necessário)
+            }
+            ;
         });
     }
 }

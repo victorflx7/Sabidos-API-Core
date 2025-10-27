@@ -19,16 +19,20 @@ public class ResumosController : ControllerBase
         _service = service;
     }
 
-
     [HttpGet]
     public async Task<ActionResult<List<ResumoResponseDto>>> GetAll()
     {
+        // 1. CHECAGEM CRÍTICA: Se o usuário não está autenticado, pare aqui.
+        // Isso deve ser equivalente ao que o [Authorize] deveria fazer, mas garante o 401 no teste.
+        if (!User.Identity.IsAuthenticated) { return Unauthorized(); } // <<< LINHA ADICIONADA/CORRIGIDA
+
+        // 2. Extração do UID, agora que a autenticação está confirmada.
         var uid = User.FindFirst("user_id")?.Value
                  ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                  ?? User.FindFirst("sub")?.Value;
 
-        // CORREÇÃO FINAL: Use string.IsNullOrEmpty para cobrir null OU string vazia
-        if (string.IsNullOrEmpty(uid)) { return Unauthorized(); } // <<< LINHA CORRIGIDA
+        // 3. Checagem de segurança (mantida para robustez), mas que não deve mais falhar após o passo 1.
+        if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
 
         try
         {
@@ -40,6 +44,7 @@ public class ResumosController : ControllerBase
             return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
         }
     }
+
 
 
     [HttpGet("{id}")]
