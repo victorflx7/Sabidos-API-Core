@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -9,69 +9,88 @@ using SabidosAPI_Core.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// -------------------------------------------------------------
+// 🧩 Banco de Dados (condicional por ambiente)
+// -------------------------------------------------------------
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    // 👉 Usa banco em memória durante testes
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseInMemoryDatabase("TestDb"));
+}
+else
+{
+    // 👉 Usa SQL Server normalmente fora do ambiente de teste
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+}
 
-
-// EF Core + SQL Server
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-// AutoMapper
-
+// -------------------------------------------------------------
+// 🧩 AutoMapper e serviços
+// -------------------------------------------------------------
 builder.Services.AddAutoMapper(typeof(UserProfile));
 builder.Services.AddAutoMapper(typeof(ResumoProfile));
 builder.Services.AddAutoMapper(typeof(EventoProfile));
+
 builder.Services.AddLogging();
 builder.Services.AddAuthorization();
-// Services (por favor colocar todos neste grupo)
+
+// ✅ Registro de serviços da aplicação
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<EventoService>();
 builder.Services.AddScoped<ResumoService>();
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// -------------------------------------------------------------
+// 🧩 Autenticação condicional
+// -------------------------------------------------------------
 if (builder.Environment.IsEnvironment("Testing"))
 {
+    // 🔐 Autenticação Fake para testes (FakeJwtHandler)
     builder.Services.AddAuthentication("TestScheme")
         .AddScheme<AuthenticationSchemeOptions, FakeJwtHandler>("TestScheme", options => { });
 }
 else
 {
-    // JWT Bearer (Firebase)
+    // 🔐 JWT Bearer (Firebase)
     var firebaseProjectId = builder.Configuration["Firebase:ProjectId"];
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.Authority = $"https://securetoken.google.com/{firebaseProjectId}";
-        options.TokenValidationParameters = new TokenValidationParameters
+
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
         {
-            ValidateIssuer = true,
-            ValidIssuer = $"https://securetoken.google.com/{firebaseProjectId}",
-            ValidateAudience = true,
-            ValidAudience = firebaseProjectId,
-            ValidateLifetime = true
-        };
-    });
+            options.Authority = $"https://securetoken.google.com/{firebaseProjectId}";
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = $"https://securetoken.google.com/{firebaseProjectId}",
+                ValidateAudience = true,
+                ValidAudience = firebaseProjectId,
+                ValidateLifetime = true
+            };
+        });
 }
 
-// Configura��o do servi�o de CORS.
+// -------------------------------------------------------------
+// 🧩 CORS
+// -------------------------------------------------------------
 builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowSpecificOrigin", policy =>
     {
-        options.AddPolicy("AllowSpecificOrigin",
-            builder =>
-            {
-                builder.WithOrigins("http://localhost:5173")
-                       .AllowAnyHeader()
-                       .AllowAnyMethod();
-            });
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
     });
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// -------------------------------------------------------------
+// 🚀 Pipeline de execução
+// -------------------------------------------------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -82,10 +101,13 @@ app.UseHttpsRedirection();
 
 app.UseCors("AllowSpecificOrigin");
 
+// 🧠 Ordem correta: primeiro autenticação, depois autorização
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
 
+// Permite que o WebApplicationFactory acesse o Program
 public partial class Program { }
