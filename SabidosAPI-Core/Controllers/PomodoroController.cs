@@ -1,8 +1,9 @@
-using System.Collections.Generic;
-using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using SabidosAPI_Core.Services;
 using SabidosAPI_Core.Dtos;
+using System.Security.Claims;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace SabidosAPI_Core.Controllers
 {
@@ -10,9 +11,10 @@ namespace SabidosAPI_Core.Controllers
     [Route("api/[controller]")]
     public class PomodoroController : ControllerBase
     {
-        private readonly PomodoroService _service;
+        // Agora depende da interface
+        private readonly IPomodoroService _service;
 
-        public PomodoroController(PomodoroService service)
+        public PomodoroController(IPomodoroService service) // Injeção de dependência da interface
         {
             _service = service;
         }
@@ -24,7 +26,6 @@ namespace SabidosAPI_Core.Controllers
                      ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                      ?? User.FindFirst("sub")?.Value;
 
-            // CORRIGIDO: Checagem robusta de autorização
             if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
 
             var result = await _service.GetAllAsync(uid);
@@ -38,7 +39,6 @@ namespace SabidosAPI_Core.Controllers
                      ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                      ?? User.FindFirst("sub")?.Value;
 
-            // CORRIGIDO: Checagem robusta de autorização
             if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
 
             var total = await _service.CountTimeAsync(uid);
@@ -52,7 +52,6 @@ namespace SabidosAPI_Core.Controllers
                      ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                      ?? User.FindFirst("sub")?.Value;
 
-            // CORRIGIDO: Checagem robusta de autorização
             if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
 
             var created = await _service.CreateAsync(dto, uid);
