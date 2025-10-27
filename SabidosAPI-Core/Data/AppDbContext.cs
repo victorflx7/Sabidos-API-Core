@@ -7,11 +7,11 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    public DbSet<User> Users => Set<User>();
-    public DbSet<Resumo> Resumos => Set<Resumo>();
-    public DbSet<Evento> Eventos => Set<Evento>();
-    public DbSet<Flashcard> Flashcards => Set<Flashcard>();
-    public DbSet<Pomodoro> Pomodoros => Set<Pomodoro>();
+    public virtual DbSet<User> Users => Set<User>();
+    public virtual DbSet<Resumo> Resumos => Set<Resumo>();
+    public virtual DbSet<Evento> Eventos => Set<Evento>();
+    public virtual DbSet<Flashcard> Flashcards => Set<Flashcard>();
+    public virtual DbSet<Pomodoro> Pomodoros => Set<Pomodoro>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
