@@ -1,140 +1,167 @@
-﻿
-//using System;
-//using System.Linq;
-//using System.Threading.Tasks;
-//using AutoMapper;
-//using Microsoft.EntityFrameworkCore;
-//using SabidosAPI_Core.Data;
-//using SabidosAPI_Core.DTOs;
-//using SabidosAPI_Core.Models;
-//using SabidosAPI_Core.Services;
-//using Xunit;
+﻿using SabidosAPI_Core.Data;
+using SabidosAPI_Core.DTOs;
+using SabidosAPI_Core.Models;
+using SabidosAPI_Core.Services;
+using AutoMapper;
+using Moq;
+using Moq.EntityFrameworkCore;
+using Xunit;
+using Microsoft.EntityFrameworkCore; // Necessário para o método UpdateAsync
 
-//namespace Api.Tests.Unit
-//{
-//    public class ResumoServiceTests
-//    {
-//        private static IMapper BuildMapper()
-//        {
-//            // Scans the main assembly for AutoMapper profiles (profiles live in the SabidosAPI_Core project)
-//            var config = new MapperConfiguration(cfg => cfg.AddMaps(typeof(Resumo).Assembly));
-//            return config.CreateMapper();
-//        }
+// Nota: Adaptei o namespace do Service para refletir o que o seu código geralmente usa.
 
-//        private static AppDbContext BuildContext(string dbName)
-//        {
-//            var options = new DbContextOptionsBuilder<AppDbContext>()
-//                .UseInMemoryDatabase(dbName)
-//                .Options;
-//            return new AppDbContext(options);
-//        }
+public class ResumoServiceTests
+{
+    private readonly Mock<AppDbContext> _mockContext;
+    private readonly Mock<IMapper> _mockMapper;
+    private readonly ResumoService _service;
 
-//        [Fact]
-//        public async Task CreateResumoAsync_SavesResumoAndReturnsDto()
-//        {
-//            // Arrange
-//            var dbName = Guid.NewGuid().ToString();
-//            await using var context = BuildContext(dbName);
-//            var mapper = BuildMapper();
-//            var service = new ResumoService(context, mapper);
+    private readonly string TestAuthorUid = "firebase-uid-resumo-123";
+    private readonly string TestAuthorName = "Autor Teste";
 
-//            var createDto = new ResumoCreateUpdateDto
-//            {
-//                Titulo = "Teste Título",
-//                Conteudo = "Conteúdo do resumo"
-//            };
+    public ResumoServiceTests()
+    {
+        _mockMapper = new Mock<IMapper>();
+        _mockContext = new Mock<AppDbContext>();
+        _service = new ResumoService(_mockContext.Object, _mockMapper.Object);
+    }
 
-//            // Act
-//            var result = await service.CreateResumoAsync(createDto, "user-uid-1", "NomeAutor");
+    // ---------------------------------------------------------
+    // Testes para GetResumosCountByUserAsync
+    // ---------------------------------------------------------
 
-//            // Assert
-//            Assert.NotNull(result);
-//            Assert.True(result.Id > 0);
-//            Assert.Equal(createDto.Titulo, result.Titulo);
-//            Assert.Equal("NomeAutor", result.AuthorName);
+    [Fact]
+    public async Task GetResumosCountByUserAsync_ComResumosExistentes_DeveRetornarContagemCorreta()
+    {
+        // Arrange
+        var resumosData = new List<Resumo>
+        {
+            new Resumo { Id = 1, AuthorUid = TestAuthorUid },
+            new Resumo { Id = 2, AuthorUid = TestAuthorUid },
+            new Resumo { Id = 3, AuthorUid = "other-uid" }
+        };
 
-//            var saved = await context.Resumos.FirstOrDefaultAsync(r => r.Id == result.Id);
-//            Assert.NotNull(saved);
-//            Assert.Equal("user-uid-1", saved.AuthorUid);
-//            Assert.Equal(createDto.Conteudo, saved.Conteudo);
-//        }
+        _mockContext.Setup(c => c.Resumos).ReturnsDbSet(resumosData);
 
-//        [Fact]
-//        public async Task GetAllResumosAsync_FiltersByUser_ReturnsOnlyOwnerResumos()
-//        {
-//            // Arrange
-//            var dbName = Guid.NewGuid().ToString();
-//            await using var context = BuildContext(dbName);
-//            var mapper = BuildMapper();
-//            // seed two resumos
-//            context.Resumos.AddRange(
-//                new Resumo { Titulo = "A", Conteudo = "c", AuthorUid = "uid1", AuthorName = "U1", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-//                new Resumo { Titulo = "B", Conteudo = "d", AuthorUid = "uid2", AuthorName = "U2", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }
-//            );
-//            await context.SaveChangesAsync();
+        // Act
+        var result = await _service.GetResumosCountByUserAsync(TestAuthorUid);
 
-//            var service = new ResumoService(context, mapper);
+        // Assert
+        Assert.Equal(2, result);
+    }
 
-//            // Act
-//            var listUid1 = await service.GetAllResumosAsync("uid1");
-//            var listUid2 = await service.GetAllResumosAsync("uid2");
-//            var listAll = await service.GetAllResumosAsync(null);
+    // ---------------------------------------------------------
+    // Testes para CreateResumoAsync
+    // ---------------------------------------------------------
 
-//            // Assert
-//            Assert.Single(listUid1);
-//            Assert.Equal("A", listUid1.First().Titulo);
+    [Fact]
+    public async Task CreateResumoAsync_ComDadosValidos_DeveSalvarERetornarDto()
+    {
+        // Arrange
+        var createDto = new ResumoCreateUpdateDto { Titulo = "Novo Resumo", Conteudo = "Detalhes" };
+        var resumoModel = new Resumo { Titulo = "Novo Resumo" };
+        var responseDto = new ResumoResponseDto { Id = 1, Titulo = "Novo Resumo" };
 
-//            Assert.Single(listUid2);
-//            Assert.Equal("B", listUid2.First().Titulo);
+        _mockMapper.Setup(m => m.Map<Resumo>(createDto)).Returns(resumoModel);
+        _mockMapper.Setup(m => m.Map<ResumoResponseDto>(resumoModel)).Returns(responseDto);
 
-//            Assert.Equal(2, listAll.Count);
-//        }
+        _mockContext.Setup(c => c.Resumos.Add(It.IsAny<Resumo>()));
+        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-//        [Fact]
-//        public async Task GetResumoByIdAsync_ReturnsNull_WhenNotFound()
-//        {
-//            // Arrange
-//            var dbName = Guid.NewGuid().ToString();
-//            await using var context = BuildContext(dbName);
-//            var mapper = BuildMapper();
-//            var service = new ResumoService(context, mapper);
+        // Act
+        var result = await _service.CreateResumoAsync(createDto, TestAuthorUid, TestAuthorName);
 
-//            // Act
-//            var result = await service.GetResumoByIdAsync(9999);
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(responseDto.Titulo, result.Titulo);
+        _mockContext.Verify(c => c.Resumos.Add(It.IsAny<Resumo>()), Times.Once);
+        _mockContext.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal(TestAuthorUid, resumoModel.AuthorUid);
+        Assert.Equal(TestAuthorName, resumoModel.AuthorName);
+    }
 
-//            // Assert
-//            Assert.Null(result);
-//        }
+    // ---------------------------------------------------------
+    // Testes para UpdateresumoAsync
+    // ---------------------------------------------------------
 
-//        [Fact]
-//        public async Task DeleteResumoAsync_RemovesResumo_ReturnsTrue_WhenExists()
-//        {
-//            // Arrange
-//            var dbName = Guid.NewGuid().ToString();
-//            await using var context = BuildContext(dbName);
-//            var mapper = BuildMapper();
+    [Fact]
+    public async Task UpdateResumoAsync_ComIdExistente_DeveAtualizarERetornarDto()
+    {
+        // Arrange
+        var existingResumo = new Resumo { Id = 10, Titulo = "Antigo", AuthorUid = TestAuthorUid };
+        var updateDto = new ResumoCreateUpdateDto { Titulo = "Atualizado" };
+        var updatedResponseDto = new ResumoResponseDto { Id = 10, Titulo = "Atualizado" };
 
-//            var resumo = new Resumo
-//            {
-//                Titulo = "ToDelete",
-//                Conteudo = "x",
-//                AuthorUid = "uidX",
-//                AuthorName = "NameX",
-//                CreatedAt = DateTime.UtcNow,
-//                UpdatedAt = DateTime.UtcNow
-//            };
-//            context.Resumos.Add(resumo);
-//            await context.SaveChangesAsync();
+        // Simular o FirstOrDefaultAsync com Include
+        var resumosData = new List<Resumo> { existingResumo };
+        _mockContext.Setup(c => c.Resumos).ReturnsDbSet(resumosData);
 
-//            var service = new ResumoService(context, mapper);
+        // Configurar o comportamento de busca (necessário devido ao Include no Service)
+        _mockContext.Setup(c => c.Resumos.Include(It.IsAny<string>()).FirstOrDefaultAsync(
+            It.IsAny<System.Linq.Expressions.Expression<Func<Resumo, bool>>>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingResumo);
 
-//            // Act
-//            var deleted = await service.DeleteResumoAsync(resumo.Id);
+        _mockMapper.Setup(m => m.Map(updateDto, existingResumo));
+        _mockMapper.Setup(m => m.Map<ResumoResponseDto>(existingResumo)).Returns(updatedResponseDto);
+        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-//            // Assert
-//            Assert.True(deleted);
-//            var exists = await context.Resumos.AnyAsync(r => r.Id == resumo.Id);
-//            Assert.False(exists);
-//        }
-//    }
-//}
+        // Act
+        var result = await _service.UpdateresumoAsync(10, updateDto);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Atualizado", result.Titulo);
+        _mockContext.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateResumoAsync_ComIdInexistente_DeveRetornarNull()
+    {
+        // Arrange
+        _mockContext.Setup(c => c.Resumos).ReturnsDbSet(new List<Resumo>()); // Simular banco vazio
+
+        // Configurar o comportamento de busca para retornar null
+        _mockContext.Setup(c => c.Resumos.Include(It.IsAny<string>()).FirstOrDefaultAsync(
+            It.IsAny<System.Linq.Expressions.Expression<Func<Resumo, bool>>>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Resumo)null);
+
+        // Act
+        var result = await _service.UpdateresumoAsync(999, new ResumoCreateUpdateDto());
+
+        // Assert
+        Assert.Null(result);
+        _mockContext.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // ---------------------------------------------------------
+    // Testes para DeleteResumoAsync
+    // ---------------------------------------------------------
+
+    [Fact]
+    public async Task DeleteResumoAsync_ComIdExistente_DeveDeletarERetornarTrue()
+    {
+        // Arrange
+        var resumoToDelete = new Resumo { Id = 100 };
+        var resumosData = new List<Resumo> { resumoToDelete };
+
+        // Simular o DbSet para encontrar o item
+        _mockContext.Setup(c => c.Resumos).ReturnsDbSet(resumosData);
+        _mockContext.Setup(c => c.Resumos.FirstOrDefaultAsync(
+            It.IsAny<System.Linq.Expressions.Expression<Func<Resumo, bool>>>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(resumoToDelete);
+
+        _mockContext.Setup(c => c.Resumos.Remove(resumoToDelete));
+        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        // Act
+        var result = await _service.DeleteResumoAsync(100);
+
+        // Assert
+        Assert.True(result);
+        _mockContext.Verify(c => c.Resumos.Remove(resumoToDelete), Times.Once);
+        _mockContext.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+}
