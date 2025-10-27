@@ -18,13 +18,12 @@ public class ResumosController : ControllerBase
         _service = service;
     }
 
-    
-    [HttpGet]
+
     public async Task<ActionResult<List<ResumoResponseDto>>> GetAll()
     {
-        var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (uid is null) { return Unauthorized(); }
-
+        var uid = User.FindFirst("user_id")?.Value
+                  ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                  ?? User.FindFirst("sub")?.Value;
         try
         {
             var eventos = await _service.GetAllResumosAsync(uid);
@@ -36,7 +35,7 @@ public class ResumosController : ControllerBase
         }
     }
 
-    
+
     [HttpGet("{id}")]
     public async Task<ActionResult<ResumoResponseDto>> GetById(int id)
     {
