@@ -43,7 +43,9 @@ jobs:
       # A flag --no-build garante que ele use o que foi compilado no passo anterior
       run: dotnet test --no-build --configuration Release --verbosity normal
       working-directory: Api.Tests
-        
+      env:
+        ASPNETCORE_ENVIRONMENT: Testing
+
     # --- Opcional: Publicar Resultados de Teste (Requer um arquivo de relatório) ---
     # - name: 6. Publicar Resultados de Teste (Se você usar um formato de relatório)
     #   uses: dorny/test-reporter@v1

@@ -8,6 +8,7 @@ using SabidosAPI_Core.Profiles;
 using SabidosAPI_Core.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+Console.WriteLine($"🌱 Ambiente atual: {builder.Environment.EnvironmentName}");
 
 // -------------------------------------------------------------
 // 🧩 Banco de Dados (condicional por ambiente)
@@ -15,12 +16,14 @@ var builder = WebApplication.CreateBuilder(args);
 if (builder.Environment.IsEnvironment("Testing"))
 {
     // 👉 Usa banco em memória durante testes
+    Console.WriteLine("⚙️ Usando banco de dados InMemory (modo de testes)");
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseInMemoryDatabase("TestDb"));
 }
 else
 {
     // 👉 Usa SQL Server normalmente fora do ambiente de teste
+    Console.WriteLine("⚙️ Usando banco de dados SQL Server (modo normal)");
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 }

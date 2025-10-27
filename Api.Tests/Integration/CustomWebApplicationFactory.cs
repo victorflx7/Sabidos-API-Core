@@ -1,10 +1,8 @@
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Hosting;
+Ôªøusing Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SabidosAPI_Core.Data;
-using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProgram> where TProgram : class
 {
@@ -12,29 +10,25 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
     {
         builder.ConfigureServices(services =>
         {
-            // Remove o DbContext configurado no ambiente de produÁ„o (SQL Server)
+            // üîÑ Garante que estamos sempre em ambiente "Testing"
+            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
+
+            // üîß Remove qualquer contexto antigo (caso exista)
             var descriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
-
 
             if (descriptor != null)
                 services.Remove(descriptor);
 
-            // Adiciona um novo contexto InMemory, com nome aleatÛrio para evitar conflitos entre testes
+            // ‚öôÔ∏è Reconfigura o contexto explicitamente como InMemory (isolado)
             services.AddDbContext<AppDbContext>(options =>
-            {
-                options.UseInMemoryDatabase($"InMemoryDbForTesting_{Guid.NewGuid()}");
-            });
+                options.UseInMemoryDatabase($"TestDb_{Guid.NewGuid()}"));
 
-            // Adiciona autenticaÁ„o fake
-            services.AddAuthentication("TestScheme")
-                .AddScheme<AuthenticationSchemeOptions, FakeJwtHandler>("TestScheme", options => { });
-
-
-            // ConstrÛi o provedor e inicializa o banco em memÛria
+            // Cria banco limpo
             var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Database.EnsureDeleted();
             db.Database.EnsureCreated();
         });
     }
