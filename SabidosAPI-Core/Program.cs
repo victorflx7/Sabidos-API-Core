@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -32,9 +33,15 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-
-// JWT Bearer (Firebase)
-var firebaseProjectId = builder.Configuration["Firebase:ProjectId"];
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddAuthentication("TestScheme")
+        .AddScheme<AuthenticationSchemeOptions, FakeJwtHandler>("TestScheme", options => { });
+}
+else
+{
+    // JWT Bearer (Firebase)
+    var firebaseProjectId = builder.Configuration["Firebase:ProjectId"];
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -48,9 +55,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateLifetime = true
         };
     });
+}
 
-    // Configuração do serviço de CORS.
-    builder.Services.AddCors(options =>
+// Configuração do serviço de CORS.
+builder.Services.AddCors(options =>
     {
         options.AddPolicy("AllowSpecificOrigin",
             builder =>
