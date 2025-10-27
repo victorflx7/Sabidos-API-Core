@@ -38,11 +38,11 @@ jobs:
       run: dotnet build --no-restore --configuration Release
       working-directory: SabidosAPI-Core
 
-    # - name: 5. Executar Testes Unitários e Gerar Cobertura (Opcional)
-    #   # Este passo executa todos os projetos de teste
-    #   # A flag --no-build garante que ele use o que foi compilado no passo anterior
-    #   run: dotnet test --no-build --configuration Release --verbosity normal
-    #   working-directory: Api.Tests
+    - name: 5. Executar Testes Unitários e Gerar Cobertura (Opcional)
+      # Este passo executa todos os projetos de teste
+      # A flag --no-build garante que ele use o que foi compilado no passo anterior
+      run: dotnet test --no-build --configuration Release --verbosity normal
+      working-directory: Api.Tests
         
     # --- Opcional: Publicar Resultados de Teste (Requer um arquivo de relatório) ---
     # - name: 6. Publicar Resultados de Teste (Se você usar um formato de relatório)
