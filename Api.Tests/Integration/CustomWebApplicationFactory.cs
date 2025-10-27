@@ -13,12 +13,18 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             // 🔄 Garante que estamos sempre em ambiente "Testing"
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
 
-            // 🔧 Remove qualquer contexto antigo (caso exista)
-            var descriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
+            // ⚠️ 🔑 REMOVE TODOS os serviços relacionados ao AppDbContext e suas opções.
+            // Isso garante que o registro do SQL Server (feito no Program.cs) seja removido.
+            var dbContextServices = services
+                .Where(d => d.ServiceType == typeof(AppDbContext) ||
+                            d.ServiceType == typeof(DbContextOptions<AppDbContext>) ||
+                            d.ServiceType == typeof(DbContextOptions))
+                .ToList();
 
-            if (descriptor != null)
+            foreach (var descriptor in dbContextServices)
+            {
                 services.Remove(descriptor);
+            }
 
             // ⚙️ Reconfigura o contexto explicitamente como InMemory (isolado)
             services.AddDbContext<AppDbContext>(options =>
@@ -28,6 +34,9 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            // A linha 31 do rastreamento de pilha (db.Database.EnsureDeleted())
+            // agora deve funcionar corretamente após a remoção dos provedores conflitantes.
             db.Database.EnsureDeleted();
             db.Database.EnsureCreated();
         });
