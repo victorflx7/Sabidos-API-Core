@@ -49,7 +49,8 @@ public class ResumosController : ControllerBase
     public async Task<ActionResult<int>> GetEventosCountCountByUser()
     {
         var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (uid is null) { return Unauthorized(); }
+
+        if (string.IsNullOrEmpty(uid)) { return Unauthorized(); }
         try
         {
             var count = await _service.GetResumosCountByUserAsync(uid);
