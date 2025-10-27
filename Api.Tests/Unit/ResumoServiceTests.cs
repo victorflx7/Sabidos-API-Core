@@ -6,7 +6,7 @@ using AutoMapper;
 using Moq;
 using Moq.EntityFrameworkCore;
 using Xunit;
-using Microsoft.EntityFrameworkCore; // Necessário para o método UpdateAsync
+using Microsoft.EntityFrameworkCore; // Mantido para simular chamadas do EF Core
 
 // Nota: Adaptei o namespace do Service para refletir o que o seu código geralmente usa.
 
@@ -92,15 +92,11 @@ public class ResumoServiceTests
         var updateDto = new ResumoCreateUpdateDto { Titulo = "Atualizado" };
         var updatedResponseDto = new ResumoResponseDto { Id = 10, Titulo = "Atualizado" };
 
-        // Simular o FirstOrDefaultAsync com Include
         var resumosData = new List<Resumo> { existingResumo };
-        _mockContext.Setup(c => c.Resumos).ReturnsDbSet(resumosData);
 
-        // Configurar o comportamento de busca (necessário devido ao Include no Service)
-        _mockContext.Setup(c => c.Resumos.Include(It.IsAny<string>()).FirstOrDefaultAsync(
-            It.IsAny<System.Linq.Expressions.Expression<Func<Resumo, bool>>>(),
-            It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingResumo);
+        // 🔑 CORREÇÃO: Apenas configure o DbSet com os dados. 
+        // Moq.EntityFrameworkCore simulará o FirstOrDefaultAsync/Include.
+        _mockContext.Setup(c => c.Resumos).ReturnsDbSet(resumosData);
 
         _mockMapper.Setup(m => m.Map(updateDto, existingResumo));
         _mockMapper.Setup(m => m.Map<ResumoResponseDto>(existingResumo)).Returns(updatedResponseDto);
@@ -119,13 +115,8 @@ public class ResumoServiceTests
     public async Task UpdateResumoAsync_ComIdInexistente_DeveRetornarNull()
     {
         // Arrange
-        _mockContext.Setup(c => c.Resumos).ReturnsDbSet(new List<Resumo>()); // Simular banco vazio
-
-        // Configurar o comportamento de busca para retornar null
-        _mockContext.Setup(c => c.Resumos.Include(It.IsAny<string>()).FirstOrDefaultAsync(
-            It.IsAny<System.Linq.Expressions.Expression<Func<Resumo, bool>>>(),
-            It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Resumo)null);
+        // Apenas configure o DbSet para não ter o item, a consulta falhará naturalmente.
+        _mockContext.Setup(c => c.Resumos).ReturnsDbSet(new List<Resumo>());
 
         // Act
         var result = await _service.UpdateresumoAsync(999, new ResumoCreateUpdateDto());
@@ -146,12 +137,8 @@ public class ResumoServiceTests
         var resumoToDelete = new Resumo { Id = 100 };
         var resumosData = new List<Resumo> { resumoToDelete };
 
-        // Simular o DbSet para encontrar o item
+        // 🔑 CORREÇÃO: Apenas configure o DbSet.
         _mockContext.Setup(c => c.Resumos).ReturnsDbSet(resumosData);
-        _mockContext.Setup(c => c.Resumos.FirstOrDefaultAsync(
-            It.IsAny<System.Linq.Expressions.Expression<Func<Resumo, bool>>>(),
-            It.IsAny<CancellationToken>()))
-            .ReturnsAsync(resumoToDelete);
 
         _mockContext.Setup(c => c.Resumos.Remove(resumoToDelete));
         _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
@@ -161,7 +148,22 @@ public class ResumoServiceTests
 
         // Assert
         Assert.True(result);
-        _mockContext.Verify(c => c.Resumos.Remove(resumoToDelete), Times.Once);
+        _mockContext.Verify(c => c.Resumos.Remove(It.IsAny<Resumo>()), Times.Once);
         _mockContext.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteResumoAsync_ComIdInexistente_DeveRetornarFalse()
+    {
+        // Arrange
+        _mockContext.Setup(c => c.Resumos).ReturnsDbSet(new List<Resumo>()); // Simular banco vazio
+
+        // Act
+        var result = await _service.DeleteResumoAsync(999);
+
+        // Assert
+        Assert.False(result);
+        _mockContext.Verify(c => c.Resumos.Remove(It.IsAny<Resumo>()), Times.Never);
+        _mockContext.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 }

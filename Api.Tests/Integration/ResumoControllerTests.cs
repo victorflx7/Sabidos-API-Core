@@ -11,6 +11,7 @@ public class ResumoControllerTests : IClassFixture<CustomWebApplicationFactory<P
 {
     private readonly HttpClient _client;
     // O token de teste simula a presença de 'user_id' e 'name'
+    // O FakeJwtHandler agora garante que a autenticação funcione corretamente
     private readonly string TestToken = "valid-test-token-for-resumo-user-1";
     private readonly string Endpoint = "/api/resumos";
 
@@ -23,6 +24,7 @@ public class ResumoControllerTests : IClassFixture<CustomWebApplicationFactory<P
 
     private void SetAuthorizationHeader()
     {
+        // O valor do token não importa, mas a presença do cabeçalho sim.
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestToken);
     }
 
@@ -34,12 +36,13 @@ public class ResumoControllerTests : IClassFixture<CustomWebApplicationFactory<P
     public async Task GetAll_SemAutorizacao_DeveRetornar401Unauthorized()
     {
         // Arrange
-        _client.DefaultRequestHeaders.Authorization = null;
+        _client.DefaultRequestHeaders.Authorization = null; // Remove a autorização
 
         // Act
         var response = await _client.GetAsync(Endpoint);
 
         // Assert
+        // Este teste falhou antes e deve passar após a correção no CustomWebApplicationFactory
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
@@ -96,6 +99,24 @@ public class ResumoControllerTests : IClassFixture<CustomWebApplicationFactory<P
 
         // Act
         var response = await _client.PutAsync($"{Endpoint}/{nonexistentId}", jsonContent);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    // ---------------------------------------------------------
+    // Testes de Integração para DELETE /api/resumos/{id}
+    // ---------------------------------------------------------
+
+    [Fact]
+    public async Task Delete_ComIdInexistente_DeveRetornar404NotFound()
+    {
+        // Arrange
+        SetAuthorizationHeader();
+        int nonexistentId = 9999;
+
+        // Act
+        var response = await _client.DeleteAsync($"{Endpoint}/{nonexistentId}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
