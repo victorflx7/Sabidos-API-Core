@@ -19,12 +19,16 @@ public class ResumosController : ControllerBase
     }
 
 
+    [HttpGet]
     public async Task<ActionResult<List<ResumoResponseDto>>> GetAll()
     {
         var uid = User.FindFirst("user_id")?.Value
-                  ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                  ?? User.FindFirst("sub")?.Value;
-        if (uid is null) { return Unauthorized(); }
+                 ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                 ?? User.FindFirst("sub")?.Value;
+
+        // CORREÇÃO CRÍTICA FINAL: Use string.IsNullOrEmpty para cobrir null E string vazia ("")
+        if (string.IsNullOrEmpty(uid)) { return Unauthorized(); } // <<< LINHA CORRIGIDA
+
         try
         {
             var eventos = await _service.GetAllResumosAsync(uid);
@@ -49,8 +53,7 @@ public class ResumosController : ControllerBase
     public async Task<ActionResult<int>> GetEventosCountCountByUser()
     {
         var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-
-        if (string.IsNullOrEmpty(uid)) { return Unauthorized(); }
+        if (uid is null) { return Unauthorized(); }
         try
         {
             var count = await _service.GetResumosCountByUserAsync(uid);
