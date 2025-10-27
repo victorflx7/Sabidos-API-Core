@@ -24,6 +24,7 @@ public class ResumosController : ControllerBase
         var uid = User.FindFirst("user_id")?.Value
                   ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                   ?? User.FindFirst("sub")?.Value;
+        if (uid is null) { return Unauthorized(); }
         try
         {
             var eventos = await _service.GetAllResumosAsync(uid);
