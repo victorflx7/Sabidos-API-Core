@@ -48,9 +48,10 @@ namespace SabidosAPI_Core.Tests.Services
         public EventoServiceTests()
         {
             // Inicializa Mocks
-            _mockContext = new Mock<AppDbContext>();
-            _mockMapper = new Mock<IMapper>();
+            _mockContext = new Mock<AppDbContext>(new DbContextOptions<AppDbContext>());
 
+
+            _mockMapper = new Mock<IMapper>();
             // Dados de teste (incluindo o relacionamento com User para evitar NullReferenceException no .Include)
             _eventos = new List<Evento>
             {
