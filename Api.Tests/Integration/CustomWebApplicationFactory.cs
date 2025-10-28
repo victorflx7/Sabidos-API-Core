@@ -6,9 +6,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.Authentication;
 using System.Linq;
-using AutoMapper; // ADICIONAR ESTE USING
-using System.Reflection; // ADICIONAR ESTE USING
-using SabidosAPI_Core.Models;
+using System;
+using System.Reflection; // Necessário para AutoMapper
+using AutoMapper; // Necessário para AutoMapper
+using SabidosAPI_Core.Models; // Adicione para ter acesso ao modelo Evento
 
 public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProgram> where TProgram : class
 {
@@ -18,7 +19,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
 
         builder.ConfigureServices(services =>
         {
-            // ⚠️ REMOÇÃO DE DbContext EXISTENTE (Mais seguro)
+            // 1. Limpa DbContexts existentes e configura o In-Memory com NOME FIXO
             var dbContextDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
 
@@ -27,19 +28,15 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                 services.Remove(dbContextDescriptor);
             }
 
-            // ⚙️ Reconfigura o contexto explicitamente como InMemory com NOME FIXO
-            // Usar um nome fixo (ex: "IntegrationTestDb") garante que todos os testes 
-            // no mesmo IClassFixture usem a mesma instância.
+            // Usar um nome fixo (ex: "IntegrationTestDb") garante que EnsureDeleted funcione consistentemente.
             services.AddDbContext<AppDbContext>(options =>
                 options.UseInMemoryDatabase("IntegrationTestDb"));
 
-            // 🔑 CORREÇÃO CRÍTICA 2: Configuração do AutoMapper
-            // Adicione a configuração do AutoMapper forçando o carregamento do seu perfil
-            // Assumo que o seu perfil de mapeamento está na mesma assembly da AppDbContext ou do Program.
+            // 2. CORREÇÃO CRÍTICA: Configuração do AutoMapper (Resolve o 500 Internal Server Error)
+            // Isso força o TestServer a carregar seus perfis de mapeamento.
             services.AddAutoMapper(Assembly.GetAssembly(typeof(AppDbContext)));
 
-
-            // 🔑 Mock de Autenticação (Mantido, já funciona)
+            // 3. Configuração do Mock de Autenticação (Mantido, para o FakeJwtHandler)
             var authServices = services
                 .Where(s => s.ServiceType.FullName?.Contains("Microsoft.AspNetCore.Authentication") == true)
                 .ToList();
@@ -58,24 +55,35 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             .AddScheme<AuthenticationSchemeOptions, FakeJwtHandler>("FakeScheme", options => { });
 
 
-            // 🌟 Seeding do banco de dados
+            // 4. Seeding do banco de dados (Feito de forma idempotente)
             var sp = services.BuildServiceProvider();
             using (var scope = sp.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+                // Garante que o banco está limpo e criado
                 db.Database.EnsureDeleted();
                 db.Database.EnsureCreated();
 
-                // 🔑 Adiciona o Evento com ID 1
+                // 🔑 Adiciona o Evento com ID 1 APENAS se não existir (Idempotência)
+                // O erro "Key: 1" desaparece com o nome fixo e o EnsureDeleted.
                 if (!db.Eventos.Any(e => e.Id == 1))
                 {
                     db.Eventos.Add(new Evento
                     {
                         Id = 1,
                         TitleEvent = "Evento para Teste de Autorização",
+                        // UID diferente do TestToken para testar a autorização de exclusão.
                         AuthorUid = "firebase-uid-outro-usuario",
                         DataEvento = DateTime.Now
+                    });
+
+                    // Adiciona um User Profile para evitar que outros testes de User falhem no Upsert
+                    db.UserProfiles.Add(new SabidosAPI_Core.Models.User
+                    {
+                        FirebaseUid = "firebase-uid-outro-usuario",
+                        DisplayName = "Outro Usuário",
+                        CreatedAt = DateTime.UtcNow
                     });
 
                     db.SaveChanges();
