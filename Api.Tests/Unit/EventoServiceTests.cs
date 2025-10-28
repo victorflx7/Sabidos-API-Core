@@ -50,7 +50,6 @@ namespace SabidosAPI_Core.Tests.Services
             // Inicializa Mocks
             _mockContext = new Mock<AppDbContext>(new DbContextOptions<AppDbContext>());
 
-
             _mockMapper = new Mock<IMapper>();
             // Dados de teste (incluindo o relacionamento com User para evitar NullReferenceException no .Include)
             _eventos = new List<Evento>
@@ -111,30 +110,31 @@ namespace SabidosAPI_Core.Tests.Services
         public async Task GetEventosByIdAsync_DeveRetornarEvento_QuandoExiste()
         {
             // Arrange
-            var evento = _eventos.First();
+            var evento = _eventos.First(); // Usa o primeiro evento da lista (Id=1)
             var expectedDto = new EventoResponseDto { Id = 1, TitleEvent = evento.TitleEvent };
 
-            // O mock para FirstOrDefaultAsync deve ser configurado com o IQueryable
-            // Por simplicidade, vamos usar o FindAsync ou Mockar o retorno do Include/FirstOrDefault
+            // 1. Remover o Setup do FirstOrDefaultAsync/Include. O helper e a lista já fazem a busca.
+            // 2. Mockar o FindAsync é opcional, mas vamos mantê-lo para maior cobertura:
             _mockContext.Setup(c => c.Eventos.FindAsync(It.IsAny<object[]>())).ReturnsAsync(evento);
-            _mockContext.Setup(c => c.Eventos.Include(It.IsAny<System.Linq.Expressions.Expression<Func<Evento, User>>>()).FirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Evento, bool>>>(), default))
-                        .ReturnsAsync(evento);
-            _mockMapper.Setup(m => m.Map<EventoResponseDto>(evento)).Returns(expectedDto);
+
+            _mockMapper.Setup(m => m.Map<EventoResponseDto>(It.IsAny<Evento>())).Returns(expectedDto);
 
             // Act
-            var result = await _service.GetEventosByIdAsync(1);
+            var result = await _service.GetEventosByIdAsync(1); // Busca o evento que está na lista
 
             // Assert
             Assert.NotNull(result);
             Assert.Equal(1, result.Id);
+            // Verificar se o DbSet foi acessado (opcional, mas bom)
+            _mockContext.Verify(c => c.Eventos, Times.Once);
         }
 
         [Fact]
         public async Task GetEventosByIdAsync_DeveRetornarNull_QuandoNaoExiste()
         {
             // Arrange
-            _mockContext.Setup(c => c.Eventos.Include(It.IsAny<System.Linq.Expressions.Expression<Func<Evento, User>>>()).FirstOrDefaultAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Evento, bool>>>(), default))
-                        .ReturnsAsync((Evento)null);
+            // NENHUM Setup é necessário para retornar NULL, pois o helper irá pesquisar na 
+            // lista _eventos e, como o ID não existe, o FirstOrDefaultAsync retornará null.
 
             // Act
             var result = await _service.GetEventosByIdAsync(99);
