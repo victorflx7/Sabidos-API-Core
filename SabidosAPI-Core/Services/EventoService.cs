@@ -2,12 +2,10 @@
 using Microsoft.EntityFrameworkCore;
 using SabidosAPI_Core.Data;
 using SabidosAPI_Core.DTOs;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace SabidosAPI_Core.Services
 {
-    public class EventoService : IEventoService // Implementa a interface
+    public class EventoService
     {
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
@@ -43,7 +41,6 @@ namespace SabidosAPI_Core.Services
         {
             return await _context.Eventos.CountAsync(e => e.AuthorUid == authorUid);
         }
-
         public async Task<EventoResponseDto> CreateEventoAsync(EventoResponseDto eventoDto, string authorUid)
         {
             var evento = _mapper.Map<Models.Evento>(eventoDto);
@@ -54,6 +51,7 @@ namespace SabidosAPI_Core.Services
             return _mapper.Map<EventoResponseDto>(evento);
         }
 
+
         public async Task<EventoResponseDto?> UpdateEventoAsync(int id, EventoResponseDto eventoDto)
         {
             var existingEvento = await _context.Eventos.FindAsync(id);
@@ -63,6 +61,7 @@ namespace SabidosAPI_Core.Services
             return _mapper.Map<EventoResponseDto>(existingEvento);
         }
 
+
         public async Task<bool> DeleteEventoAsync(int id)
         {
             var evento = await _context.Eventos.FindAsync(id);
@@ -71,7 +70,7 @@ namespace SabidosAPI_Core.Services
             await _context.SaveChangesAsync();
             return true;
         }
-    
+
 
 
         //public Task DeleteEventoAsync(int id)
