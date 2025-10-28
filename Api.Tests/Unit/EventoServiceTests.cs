@@ -10,6 +10,7 @@ using SabidosAPI_Core.DTOs;
 using SabidosAPI_Core.Models;
 using SabidosAPI_Core.Services;
 using Xunit;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace SabidosAPI_Core.Tests.Services
 {
@@ -67,7 +68,19 @@ namespace SabidosAPI_Core.Tests.Services
             // Configura SaveChangesAsync
             _mockContext.Setup(c => c.SaveChangesAsync(default)).ReturnsAsync(1);
 
+            // Setup para .Include() com string (Ex: .Include("User"))
+            _mockContext.Setup(c => c.Eventos.Include(It.IsAny<string>()))
+                .Returns((string path) => _mockContext.Object.Eventos);
 
+            // 1. Setup para .Include() com string (Ex: .Include("User"))
+            // Força o cast explícito para a interface IIncludableQueryable<Evento, object>
+            _mockContext.Setup(c => c.Eventos.Include(It.IsAny<string>()))
+                .Returns((string path) => (IIncludableQueryable<Evento, object>)mockSet.Object); // Uso do mockSet.Object
+
+            // 2. Setup para .Include() com expressão lambda (Ex: .Include(e => e.User))
+            // Força o cast explícito para a interface IIncludableQueryable<Evento, object>
+            _mockContext.Setup(c => c.Eventos.Include(It.IsAny<System.Linq.Expressions.Expression<Func<Evento, object>>>()))
+                .Returns((System.Linq.Expressions.Expression<Func<Evento, object>> expression) => (IIncludableQueryable<Evento, object>)mockSet.Object); // Uso do mockSet.Object
             // Cria a instância do serviço com os Mocks
             _service = new EventoService(_mockContext.Object, _mockMapper.Object);
         }
