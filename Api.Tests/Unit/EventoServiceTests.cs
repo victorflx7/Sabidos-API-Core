@@ -1,11 +1,17 @@
-﻿using SabidosAPI_Core.Data;
+﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
+using Moq;
+using Moq.EntityFrameworkCore;
+using SabidosAPI_Core.Data;
 using SabidosAPI_Core.DTOs;
 using SabidosAPI_Core.Models;
 using SabidosAPI_Core.Services;
-using AutoMapper;
-using Moq;
-using Moq.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query; 
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
+
 namespace Api.Tests.Unit;
 
 public class EventoServiceTests
@@ -19,29 +25,41 @@ public class EventoServiceTests
     public EventoServiceTests()
     {
         _mockMapper = new Mock<IMapper>();
-        // É necessário configurar um DbSet vazio, pois o EF Core mocking requer isso.
-        _mockContext = new Mock<AppDbContext>();
+
+        // CORREÇÃO ESSENCIAL: AppDbContext exige DbContextOptions<AppDbContext> no construtor.
+        // Passamos 'null' como argumento para o construtor do mock para evitar o erro "MissingMethodException".
+        _mockContext = new Mock<AppDbContext>(new object[] { null });
+
+        // --- MOCKS GLOBAIS OBRIGATÓRIOS ---
+
+        // 1. Mock para SaveChangesAsync (Usado em Create, Update, Delete)
+        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        // 2. Mock para .Include() (Crucial para GetAllEventosAsync e GetEventosByIdAsync, se usarem include)
+        // Isso permite que o Moq.EntityFrameworkCore continue a processar as queries LINQ que contêm .Include().
+        _mockContext.Setup(c => c.Eventos.Include(It.IsAny<System.Linq.Expressions.Expression<Func<Evento, object>>>()))
+            .Returns((System.Linq.Expressions.Expression<Func<Evento, object>> expression) =>
+                (IIncludableQueryable<Evento, object>)_mockContext.Object.Eventos);
+
+        // 3. Configura o serviço
         _service = new EventoService(_mockContext.Object, _mockMapper.Object);
     }
 
     // ---------------------------------------------------------
-    // Testes para GetEventosCountByUserAsync
+    // Testes para GetAllEventosAsync
     // ---------------------------------------------------------
-
-    // --- Testes para GetAllEventosAsync ---
 
     [Fact]
     public async Task GetAllEventosAsync_ComUid_DeveRetornarApenasEventosDoUsuario()
     {
         // Arrange
         var eventosData = new List<Evento>
-    {
-        new Evento { Id = 1, AuthorUid = TestAuthorUid, DataEvento = DateTime.Now },
-        new Evento { Id = 2, AuthorUid = TestAuthorUid, DataEvento = DateTime.Now.AddDays(1) },
-        new Evento { Id = 3, AuthorUid = "outro-uid", DataEvento = DateTime.Now }
-    };
+        {
+            new Evento { Id = 1, AuthorUid = TestAuthorUid, DataEvento = DateTime.Now },
+            new Evento { Id = 2, AuthorUid = TestAuthorUid, DataEvento = DateTime.Now.AddDays(1) },
+            new Evento { Id = 3, AuthorUid = "outro-uid", DataEvento = DateTime.Now }
+        };
 
-        // Configura o DbSet com os dados
         _mockContext.Setup(c => c.Eventos).ReturnsDbSet(eventosData);
 
         // Simula o mapeamento de 2 entidades para 2 DTOs
@@ -60,12 +78,11 @@ public class EventoServiceTests
     {
         // Arrange
         var eventosData = new List<Evento>
-    {
-        new Evento { Id = 1, AuthorUid = TestAuthorUid, DataEvento = DateTime.Now },
-        new Evento { Id = 2, AuthorUid = "outro-uid", DataEvento = DateTime.Now },
-    };
+        {
+            new Evento { Id = 1, AuthorUid = TestAuthorUid, DataEvento = DateTime.Now },
+            new Evento { Id = 2, AuthorUid = "outro-uid", DataEvento = DateTime.Now },
+        };
 
-        // Configura o DbSet com os dados
         _mockContext.Setup(c => c.Eventos).ReturnsDbSet(eventosData);
 
         // Simula o mapeamento de 2 entidades para 2 DTOs
@@ -79,7 +96,9 @@ public class EventoServiceTests
         Assert.Equal(2, result.Count);
     }
 
-    // --- Testes para GetEventosByIdAsync ---
+    // ---------------------------------------------------------
+    // Testes para GetEventosByIdAsync
+    // ---------------------------------------------------------
 
     [Fact]
     public async Task GetEventosByIdAsync_ComIdExistente_DeveRetornarDto()
@@ -90,10 +109,7 @@ public class EventoServiceTests
         var eventosData = new List<Evento> { eventoData };
         var expectedDto = new EventoResponseDto { Id = targetId, TitleEvent = "Evento Encontrado" };
 
-        // Configura o DbSet com os dados
         _mockContext.Setup(c => c.Eventos).ReturnsDbSet(eventosData);
-
-        // Simula o mapeamento
         _mockMapper.Setup(m => m.Map<EventoResponseDto>(It.IsAny<Evento>())).Returns(expectedDto);
 
         // Act
@@ -110,8 +126,6 @@ public class EventoServiceTests
     {
         // Arrange
         var eventosData = new List<Evento> { new Evento { Id = 1 } };
-
-        // Configura o DbSet com os dados (apenas ID=1 existe)
         _mockContext.Setup(c => c.Eventos).ReturnsDbSet(eventosData);
 
         // Act
@@ -119,9 +133,12 @@ public class EventoServiceTests
 
         // Assert
         Assert.Null(result);
-        // Verifica que o mapper não foi chamado, pois o evento não foi encontrado
         _mockMapper.Verify(m => m.Map<EventoResponseDto>(It.IsAny<Evento>()), Times.Never);
     }
+
+    // ---------------------------------------------------------
+    // Testes para GetEventosCountByUserAsync
+    // ---------------------------------------------------------
 
     [Fact]
     public async Task GetEventosCountByUserAsync_ComEventosExistentes_DeveRetornarContagemCorreta()
@@ -168,16 +185,15 @@ public class EventoServiceTests
     [Fact]
     public async Task CreateEventoAsync_ComDadosValidos_DeveSalvarERetornarDto()
     {
-        // Atenção: O DTO de entrada é o EventoResponseDto
         // Arrange
         var createDto = new EventoResponseDto { TitleEvent = "Reunião" };
         var eventoModel = new Evento { Id = 5, TitleEvent = "Reunião" };
 
         _mockMapper.Setup(m => m.Map<Evento>(createDto)).Returns(eventoModel);
-        _mockMapper.Setup(m => m.Map<EventoResponseDto>(eventoModel)).Returns(createDto); // Mapeamento de volta
+        _mockMapper.Setup(m => m.Map<EventoResponseDto>(eventoModel)).Returns(createDto);
 
         _mockContext.Setup(c => c.Eventos.Add(It.IsAny<Evento>()));
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        // SaveChangesAsync já está mockado no construtor
 
         // Act
         var result = await _service.CreateEventoAsync(createDto, TestAuthorUid);
@@ -187,7 +203,6 @@ public class EventoServiceTests
         Assert.Equal(createDto.TitleEvent, result.TitleEvent);
         _mockContext.Verify(c => c.Eventos.Add(It.IsAny<Evento>()), Times.Once);
         _mockContext.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        // Verifica se o AuthorUid foi setado no modelo
         Assert.Equal(TestAuthorUid, eventoModel.AuthorUid);
     }
 
@@ -208,7 +223,7 @@ public class EventoServiceTests
         // Simula o mapeamento
         _mockMapper.Setup(m => m.Map(updateDto, existingEvento));
         _mockMapper.Setup(m => m.Map<EventoResponseDto>(existingEvento)).Returns(updatedResponseDto);
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        // SaveChangesAsync já está mockado no construtor
 
         // Act
         var result = await _service.UpdateEventoAsync(10, updateDto);
@@ -245,7 +260,7 @@ public class EventoServiceTests
         _mockContext.Setup(c => c.Eventos.FindAsync(100)).ReturnsAsync(eventoToDelete);
 
         _mockContext.Setup(c => c.Eventos.Remove(eventoToDelete));
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        // SaveChangesAsync já está mockado no construtor
 
         // Act
         var result = await _service.DeleteEventoAsync(100);
