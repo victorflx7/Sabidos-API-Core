@@ -1,4 +1,6 @@
-﻿using System.Security.Claims;
+﻿using System.Collections.Generic;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using SabidosAPI_Core.DTOs;
 using SabidosAPI_Core.Services;
@@ -9,9 +11,10 @@ namespace SabidosAPI_Core.Controllers
     [Route("api/[controller]")]
     public class EventosController : ControllerBase
     {
-        private readonly EventoService _eventoService;
+        // Agora usa a interface
+        private readonly IEventoService _eventoService;
 
-        public EventosController(EventoService eventoService)
+        public EventosController(IEventoService eventoService) // Injeta a interface
         {
             _eventoService = eventoService;
         }
@@ -19,8 +22,12 @@ namespace SabidosAPI_Core.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<EventoResponseDto>>> GetAllEventos()
         {
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (uid is null) { return Unauthorized(); }
+            var uid = User.FindFirst("user_id")?.Value
+                     ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                     ?? User.FindFirst("sub")?.Value;
+
+            // CORRIGIDO: Checagem robusta de autorização
+            if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
 
             try
             {
@@ -36,6 +43,13 @@ namespace SabidosAPI_Core.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<EventoResponseDto>> GetEventoById(int id)
         {
+            var uid = User.FindFirst("user_id")?.Value
+                     ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                     ?? User.FindFirst("sub")?.Value;
+
+            // Adicionado: Checagem robusta de autorização
+            if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
+
             try
             {
                 var evento = await _eventoService.GetEventosByIdAsync(id);
@@ -52,11 +66,17 @@ namespace SabidosAPI_Core.Controllers
                 return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
             }
         }
+
         [HttpGet("count")]
         public async Task<ActionResult<int>> GetEventosCountCountByUser()
         {
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (uid is null) { return Unauthorized(); }
+            var uid = User.FindFirst("user_id")?.Value
+                     ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                     ?? User.FindFirst("sub")?.Value;
+
+            // CORRIGIDO: Checagem robusta de autorização
+            if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
+
             try
             {
                 var count = await _eventoService.GetEventosCountByUserAsync(uid);
@@ -67,13 +87,18 @@ namespace SabidosAPI_Core.Controllers
                 return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
             }
         }
-       
+
 
         [HttpPost]
         public async Task<ActionResult<EventoResponseDto>> CreateEvento([FromBody] EventoResponseDto eventoDto)
         {
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (uid is null) return Unauthorized();
+            var uid = User.FindFirst("user_id")?.Value
+                     ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                     ?? User.FindFirst("sub")?.Value;
+
+            // CORRIGIDO: Checagem robusta de autorização
+            if (string.IsNullOrWhiteSpace(uid)) return Unauthorized();
+
             try
             {
                 if (!ModelState.IsValid)
@@ -81,7 +106,7 @@ namespace SabidosAPI_Core.Controllers
                     return BadRequest(ModelState);
                 }
 
-                var createdEvento = await _eventoService.CreateEventoAsync(eventoDto,uid);
+                var createdEvento = await _eventoService.CreateEventoAsync(eventoDto, uid);
                 return CreatedAtAction(nameof(GetEventoById), new { id = createdEvento.Id }, createdEvento);
             }
             catch (Exception ex)
@@ -93,6 +118,13 @@ namespace SabidosAPI_Core.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<EventoResponseDto>> UpdateEvento(int id, [FromBody] EventoResponseDto eventoDto)
         {
+            var uid = User.FindFirst("user_id")?.Value
+                     ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                     ?? User.FindFirst("sub")?.Value;
+
+            // Adicionado: Checagem robusta de autorização
+            if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
+
             try
             {
                 if (!ModelState.IsValid)
@@ -118,6 +150,13 @@ namespace SabidosAPI_Core.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteEvento(int id)
         {
+            var uid = User.FindFirst("user_id")?.Value
+                     ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                     ?? User.FindFirst("sub")?.Value;
+
+            // Adicionado: Checagem robusta de autorização
+            if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
+
             try
             {
                 var result = await _eventoService.DeleteEventoAsync(id);
