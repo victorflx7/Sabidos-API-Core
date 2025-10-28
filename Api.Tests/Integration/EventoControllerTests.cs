@@ -62,20 +62,26 @@ public class EventoControllerTests : IClassFixture<CustomWebApplicationFactory<P
     // ---------------------------------------------------------
     // Testes de Integração para POST /api/eventos
     // ---------------------------------------------------------
-
     [Fact]
     public async Task CreateEvento_ComDadosValidos_DeveRetornar201Created()
     {
         // Arrange
         SetAuthorizationHeader();
-        // O DTO usado no Controller é EventoResponseDto
-        var createDto = new EventoResponseDto { TitleEvent = "Novo Evento", DataEvento = DateTime.Now };
+
+        // 🔑 CORREÇÃO: Usar EventoCreateDto (o DTO de entrada correto)
+        var createDto = new EventoCreateDto
+        {
+            TitleEvent = "Novo Evento via Teste",
+            DataEvento = DateTime.Now,
+            AuthorUid = "placeholder-uid" // Necessário para satisfazer a validação [Required] do DTO
+        };
+
         var jsonContent = new StringContent(JsonConvert.SerializeObject(createDto), Encoding.UTF8, "application/json");
 
         // Act
         var response = await _client.PostAsync(Endpoint, jsonContent);
 
-        // Assert
+        // Assert (Linha 88, que estava falhando)
         response.EnsureSuccessStatusCode();
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
