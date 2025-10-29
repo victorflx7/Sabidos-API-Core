@@ -39,9 +39,12 @@ builder.Services.AddLogging();
 builder.Services.AddAuthorization();
 
 // ✅ Registro de serviços da aplicação
-builder.Services.AddScoped<UserService>();
-builder.Services.AddScoped<EventoService>();
+
 builder.Services.AddScoped<ResumoService>();
+builder.Services.AddScoped<EventoService>();
+builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<PomodoroService>();
+builder.Services.AddScoped<FlashcardService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

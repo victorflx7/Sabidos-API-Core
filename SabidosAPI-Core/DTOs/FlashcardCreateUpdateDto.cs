@@ -16,7 +16,6 @@ namespace SabidosAPI_Core.DTOs
         [MaxLength(8000)]
         public string Verso { get; set; } = string.Empty;
         
-        // AuthorUid e AuthorName removidos: Serão definidos pelo Controller/Service 
-        // com base no usuário autenticado (melhor prática de segurança).
+       
     }
 }

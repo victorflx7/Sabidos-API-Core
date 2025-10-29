@@ -90,18 +90,30 @@ public class FlashcardControllerTests : IClassFixture<CustomWebApplicationFactor
         Assert.True(flashcard.Id > 0);
     }
 
+
     [Fact]
     public async Task CreateFlashcard_SemAutorizacao_DeveRetornar401Unauthorized()
     {
         // Arrange
         _client.DefaultRequestHeaders.Authorization = null;
-        var createDto = new FlashcardCreateUpdateDto { Frente = "Qual é o DTO?", Verso = "FlashcardResponseDto" };
+
+        // 🔑 CORREÇÃO CRÍTICA: Garanta que o DTO seja COMPLETAMENTE válido
+        // (com Titulo, Frente e Verso preenchidos) para que ele não falhe
+        // na validação do modelo (BadRequest) e chegue na checagem de Autorização (Unauthorized).
+        var createDto = new FlashcardCreateUpdateDto
+        {
+            Titulo = "Título Válido", // ADICIONADO/CORRIGIDO
+            Frente = "Qual é o DTO?",
+            Verso = "FlashcardResponseDto"
+        };
         var jsonContent = new StringContent(JsonConvert.SerializeObject(createDto), Encoding.UTF8, "application/json");
 
         // Act
         var response = await _client.PostAsync(Endpoint, jsonContent);
 
         // Assert
+        // Agora, o Controller executará o check de 'uid is null' antes que a validação do modelo
+        // retorne 400 (pois o DTO é válido).
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 

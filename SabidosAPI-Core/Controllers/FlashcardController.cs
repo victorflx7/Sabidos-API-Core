@@ -18,7 +18,59 @@ namespace SabidosAPI_Core.Controllers
             _service = flashcardService;
         }
 
-        // ... (GetAllFlashcards, GetFlashcardsCountCountByUser, CreateFlashcard)
+        [HttpGet]
+        public async Task<ActionResult<List<FlashcardResponseDto>>> GetAllFlashcardsByUser()
+        {
+            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            // 🔑 CORREÇÃO CRÍTICA: Garante 401 (Unauthorized) se o token estiver faltando.
+            
+            if (uid is null) { return Unauthorized(); }
+            try
+            {
+                var flashcards = await _service.GetAllFlashcardsAsync(uid);
+                return Ok(flashcards);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
+            }
+        }
+        [HttpGet("count")] // Rota correta para o teste GetAsync($"{Endpoint}/count")
+        public async Task<ActionResult<int>> GetFlashcardsCountCountByUser()
+        {
+            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+
+            // 🔑 CORREÇÃO CRÍTICA: Garante 401 (Unauthorized) se o token estiver faltando.
+            
+            if (uid is null) { return Unauthorized(); }
+
+            try
+            {
+                var count = await _service.GetFlashcardsCountByUserAsync(uid);
+                return Ok(count);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
+            }
+        }
+
+
+        // B. Corrija o método CreateFlashcard
+        // ... (Método CreateFlashcard)
+        [HttpPost]
+        public async Task<ActionResult<FlashcardResponseDto>> CreateFlashcard([FromBody] FlashcardCreateUpdateDto dto)
+        {
+            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            var name = User.FindFirst("name")?.Value ?? User.Identity?.Name ?? uid;
+
+            // 🔑 CORREÇÃO CRÍTICA: Adiciona o check de 401 que estava faltando.
+           
+            if (uid is null) { return Unauthorized(); }
+
+            var flashcard = await _service.CreateFlashcardAsync(dto, uid, name);
+            return CreatedAtAction(nameof(GetFlashcardById), new { id = flashcard.Id }, flashcard);
+        }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<FlashcardResponseDto>> GetFlashcardById(int id)
