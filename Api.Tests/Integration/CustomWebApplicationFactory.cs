@@ -13,13 +13,17 @@ using SabidosAPI_Core.Models; // Adicione para ter acesso ao modelo Evento
 
 public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProgram> where TProgram : class
 {
+    // 🔑 CORREÇÃO CRÍTICA: Gera um nome de DB único por instância de IClassFixture.
+    // Isso garante que EnsureDeleted e EnsureCreated funcionem de forma isolada e resolve o erro "Key: 1 already added".
+    private static string UniqueDbName { get; } = $"IntegrationTestDb_{Guid.NewGuid()}";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
 
         builder.ConfigureServices(services =>
         {
-            // 1. Limpa DbContexts existentes e configura o In-Memory com NOME FIXO
+            // 1. Limpa DbContexts existentes
             var dbContextDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
 
@@ -28,12 +32,11 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                 services.Remove(dbContextDescriptor);
             }
 
-            // Usar um nome fixo (ex: "IntegrationTestDb") garante que EnsureDeleted funcione consistentemente.
+            // ⚙️ Reconfigura o contexto explicitamente como InMemory com NOME ÚNICO POR FIXTURE
             services.AddDbContext<AppDbContext>(options =>
-                options.UseInMemoryDatabase("IntegrationTestDb"));
+                options.UseInMemoryDatabase(UniqueDbName));
 
-            // 2. CORREÇÃO CRÍTICA: Configuração do AutoMapper (Resolve o 500 Internal Server Error)
-            // Isso força o TestServer a carregar seus perfis de mapeamento.
+            // 2. Configuração do AutoMapper (Resolve o 500 Internal Server Error)
             services.AddAutoMapper(Assembly.GetAssembly(typeof(AppDbContext)));
 
             // 3. Configuração do Mock de Autenticação (Mantido, para o FakeJwtHandler)
@@ -55,34 +58,32 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             .AddScheme<AuthenticationSchemeOptions, FakeJwtHandler>("FakeScheme", options => { });
 
 
-            // 4. Seeding do banco de dados (Feito de forma idempotente)
+            // 4. Seeding do banco de dados (Com todas as correções de nome de propriedade/DbSet)
             var sp = services.BuildServiceProvider();
             using (var scope = sp.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                // Garante que o banco está limpo e criado
+                // Garante que o banco está limpo e criado de forma isolada
                 db.Database.EnsureDeleted();
                 db.Database.EnsureCreated();
 
-                // 🔑 Adiciona o Evento com ID 1 APENAS se não existir (Idempotência)
+                // Seeding: Adiciona os dados necessários
                 if (!db.Eventos.Any(e => e.Id == 1))
                 {
                     db.Eventos.Add(new Evento
                     {
                         Id = 1,
                         TitleEvent = "Evento para Teste de Autorização",
-                        // UID diferente do TestToken para testar a autorização de exclusão.
                         AuthorUid = "firebase-uid-outro-usuario",
                         DataEvento = DateTime.Now
                     });
 
-                    // 🔑 CORREÇÃO CS1061: Usando db.Users (o nome correto do DbSet)
-                    // 🔑 CORREÇÃO CS0117: Usando a propriedade Name (em vez de DisplayName)
+                    // CORREÇÃO: Usando db.Users e propriedade Name
                     db.Users.Add(new SabidosAPI_Core.Models.User
                     {
                         FirebaseUid = "firebase-uid-outro-usuario",
-                        Name = "Outro Usuário", // Assumindo que a propriedade é Name
+                        Name = "Outro Usuário",
                         CreatedAt = DateTime.UtcNow
                     });
 
