@@ -66,7 +66,6 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                 db.Database.EnsureCreated();
 
                 // 🔑 Adiciona o Evento com ID 1 APENAS se não existir (Idempotência)
-                // O erro "Key: 1" desaparece com o nome fixo e o EnsureDeleted.
                 if (!db.Eventos.Any(e => e.Id == 1))
                 {
                     db.Eventos.Add(new Evento
@@ -78,11 +77,12 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                         DataEvento = DateTime.Now
                     });
 
-                    // Adiciona um User Profile para evitar que outros testes de User falhem no Upsert
-                    db.UserProfiles.Add(new SabidosAPI_Core.Models.User
+                    // 🔑 CORREÇÃO CS1061: Usando db.Users (o nome correto do DbSet)
+                    // 🔑 CORREÇÃO CS0117: Usando a propriedade Name (em vez de DisplayName)
+                    db.Users.Add(new SabidosAPI_Core.Models.User
                     {
                         FirebaseUid = "firebase-uid-outro-usuario",
-                        DisplayName = "Outro Usuário",
+                        Name = "Outro Usuário", // Assumindo que a propriedade é Name
                         CreatedAt = DateTime.UtcNow
                     });
 
