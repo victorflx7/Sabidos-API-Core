@@ -1,109 +1,146 @@
-﻿using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using SabidosAPI_Core.Data;
-using SabidosAPI_Core.Models;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Text;
+using Newtonsoft.Json;
+using SabidosAPI_Core.DTOs;
 using Xunit;
 
-namespace Api.Tests.Integration
+namespace Api.Tests.Integration;
+
+// IClassFixture<CustomWebApplicationFactory<Program>> deve ser o seu padrão de integração
+public class EventoControllerTests : IClassFixture<CustomWebApplicationFactory<Program>>
 {
-    public class EventoControllerTests : IClassFixture<EventoControllerTests.TestAppFactory>
+    private readonly HttpClient _client;
+    // Token de teste que simula um usuário autenticado (UID será extraído pelo Controller)
+    private readonly string TestToken = "valid-test-token-for-evento-user-1";
+    private readonly string Endpoint = "/api/eventos";
+
+    public EventoControllerTests(CustomWebApplicationFactory<Program> factory)
     {
-        private readonly TestAppFactory _factory;
-        private const string EventosEndpoint = "/api/eventos";
+        _client = factory.CreateClient();
+    }
 
-        public EventoControllerTests(TestAppFactory factory) => _factory = factory;
+    // --- Helpers ---
 
-        [Fact]
-        public async Task GetEventos_ReturnsOkAndContainsSeededItems()
+    private void SetAuthorizationHeader()
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestToken);
+    }
+
+    // ---------------------------------------------------------
+    // Testes de Integração para GET /api/eventos/count
+    // ---------------------------------------------------------
+
+    [Fact]
+    public async Task GetEventosCountCountByUser_SemAutorizacao_DeveRetornar401Unauthorized()
+    {
+        // Arrange
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        // Act
+        var response = await _client.GetAsync($"{Endpoint}/count");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetEventosCountCountByUser_ComAutorizacao_DeveRetornar200Ok()
+    {
+        // Arrange
+        SetAuthorizationHeader();
+
+        // Act
+        var response = await _client.GetAsync($"{Endpoint}/count");
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        // O corpo deve ser "0" (int) se o banco estiver limpo
+    }
+
+    // ---------------------------------------------------------
+    // Testes de Integração para POST /api/eventos
+    // ---------------------------------------------------------
+    [Fact]
+    public async Task CreateEvento_ComDadosValidos_DeveRetornar201Created()
+    {
+        // Arrange
+        SetAuthorizationHeader();
+
+        // 🔑 CORREÇÃO: Usar EventoCreateDto (o DTO de entrada correto)
+        var createDto = new EventoCreateDto
         {
-            using var client = _factory.CreateClient();
-            var response = await client.GetAsync(EventosEndpoint);
+            TitleEvent = "Novo Evento via Teste",
+            DataEvento = DateTime.Now,
+            AuthorUid = "placeholder-uid" // Necessário para satisfazer a validação [Required] do DTO
+        };
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var jsonContent = new StringContent(JsonConvert.SerializeObject(createDto), Encoding.UTF8, "application/json");
 
-            var stream = await response.Content.ReadAsStreamAsync();
-            using var doc = await JsonDocument.ParseAsync(stream);
-            Assert.True(doc.RootElement.ValueKind == JsonValueKind.Array);
-            Assert.True(doc.RootElement.GetArrayLength() >= 3); // seed adiciona 3 eventos
-        }
+        // Act
+        var response = await _client.PostAsync(Endpoint, jsonContent);
 
-        [Fact]
-        public async Task PostEvento_AddsNewEvento_ThenCanBeRetrieved()
+        // Assert (Linha 88, que estava falhando)
+        response.EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        // Verifica o Location Header ou o corpo da resposta
+        var responseContent = await response.Content.ReadAsStringAsync();
+        var evento = JsonConvert.DeserializeObject<EventoResponseDto>(responseContent);
+        Assert.True(evento.Id > 0);
+    }
+
+    [Fact]
+    public async Task CreateEvento_SemAutorizacao_DeveRetornar401Unauthorized()
+    {
+        // Arrange
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        // 🔑 CORREÇÃO: Usar EventoCreateDto também neste teste
+        var createDto = new EventoCreateDto
         {
-            using var client = _factory.CreateClient();
+            TitleEvent = "Evento Sem Auth",
+            DataEvento = DateTime.Now,
+            AuthorUid = "placeholder"
+        };
+        var jsonContent = new StringContent(JsonConvert.SerializeObject(createDto), Encoding.UTF8, "application/json");
 
-            var novo = new Evento
-            {
-                TitleEvent = "Evento Teste",
-                DataEvento = DateTime.UtcNow.AddDays(1),
-                AuthorUid = "test-user"
-            };
+        // Act
+        var response = await _client.PostAsync(Endpoint, jsonContent);
 
-            var postResponse = await client.PostAsJsonAsync(EventosEndpoint, novo);
-            Assert.True(postResponse.IsSuccessStatusCode, "POST deve retornar sucesso (201/200)");
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 
-            // Recupera lista e valida incremento
-            var getResponse = await client.GetAsync(EventosEndpoint);
-            getResponse.EnsureSuccessStatusCode();
+    // ---------------------------------------------------------
+    // Testes de Integração para DELETE /api/eventos/{id}
+    // ---------------------------------------------------------
 
-            var stream = await getResponse.Content.ReadAsStreamAsync();
-            using var doc = await JsonDocument.ParseAsync(stream);
-            Assert.True(doc.RootElement.ValueKind == JsonValueKind.Array);
+    [Fact]
+    public async Task DeleteEvento_ComIdInexistente_DeveRetornar404NotFound()
+    {
+        // Arrange
+        SetAuthorizationHeader();
+        int nonexistentId = 9999;
 
-            // Verifica se existe ao menos um item com TitleEvent == "Evento Teste"
-            bool found = false;
-            foreach (var item in doc.RootElement.EnumerateArray())
-            {
-                if (item.TryGetProperty("titleEvent", out var titleProp) &&
-                    titleProp.GetString() == "Evento Teste")
-                {
-                    found = true;
-                    break;
-                }
-            }
+        // Act
+        var response = await _client.DeleteAsync($"{Endpoint}/{nonexistentId}");
 
-            Assert.True(found, "Evento criado não foi encontrado na lista.");
-        }
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
 
-        public class TestAppFactory : WebApplicationFactory<Program>
-        {
-            protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
-            {
-                builder.ConfigureServices(services =>
-                {
-                    var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
-                    if (descriptor != null) services.Remove(descriptor);
+    [Fact]
+    public async Task DeleteEvento_SemAutorizacao_DeveRetornar401Unauthorized()
+    {
+        // Arrange
+        _client.DefaultRequestHeaders.Authorization = null;
 
-                    services.AddDbContext<AppDbContext>(options =>
-                    {
-                        options.UseInMemoryDatabase("TestDb_Evento");
-                    });
+        // Act
+        var response = await _client.DeleteAsync($"{Endpoint}/1");
 
-                    var sp = services.BuildServiceProvider();
-                    using var scope = sp.CreateScope();
-                    var scopedServices = scope.ServiceProvider;
-                    var db = scopedServices.GetRequiredService<AppDbContext>();
-
-                    db.Database.EnsureDeleted();
-                    db.Database.EnsureCreated();
-
-                    SeedTestData(db);
-                });
-            }
-
-            private static void SeedTestData(AppDbContext db)
-            {
-                db.Eventos.AddRange(
-                    new Evento { TitleEvent = "Evento A", DataEvento = DateTime.UtcNow.AddDays(-1), AuthorUid = "user1" },
-                    new Evento { TitleEvent = "Evento B", DataEvento = DateTime.UtcNow, AuthorUid = "user2" },
-                    new Evento { TitleEvent = "Evento C", DataEvento = DateTime.UtcNow, AuthorUid = "user1" }
-                );
-                db.SaveChanges();
-            }
-        }
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 }

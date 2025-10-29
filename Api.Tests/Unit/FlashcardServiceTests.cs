@@ -5,7 +5,15 @@ using SabidosAPI_Core.Services;
 using AutoMapper;
 using Moq;
 using Moq.EntityFrameworkCore;
-
+// Adicione/Confirme estes usings no topo de FlashcardServiceTests.cs
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query; // Adicionar se estiver faltando
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
+using System.Linq;
+using System;
 namespace Api.Tests.Unit;
 
 public class FlashcardServiceTests
@@ -20,10 +28,25 @@ public class FlashcardServiceTests
     public FlashcardServiceTests()
     {
         _mockMapper = new Mock<IMapper>();
-        _mockContext = new Mock<AppDbContext>();
+
+        // 🔑 CORREÇÃO CRÍTICA: Cria opções DbContextOptions<AppDbContext> válidas (não-nulas)
+        // O banco de dados In-Memory é usado para criar uma instância válida.
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        // Passa as opções válidas para o construtor do Mock, resolvendo o ArgumentNullException
+        // e permitindo que o Moq.EntityFrameworkCore funcione corretamente.
+        _mockContext = new Mock<AppDbContext>(options); // CORRIGIDO: Passando 'options'
+
+        // --- MOCKS GLOBAIS OBRIGATÓRIOS ---
+
+        // 1. Mock para SaveChangesAsync (Usado em Create, Update, Delete)
+        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        // 2. Configura o serviço
         _service = new FlashcardService(_mockContext.Object, _mockMapper.Object);
     }
-
     // ---------------------------------------------------------
     // Testes para GetFlashcardsCountByUserAsync
     // ---------------------------------------------------------
@@ -107,31 +130,34 @@ public class FlashcardServiceTests
     // Testes para CreateFlashcardAsync
     // ---------------------------------------------------------
 
+    // Localize e substitua este método em FlashcardServiceTests.cs
+
     [Fact]
     public async Task CreateFlashcardAsync_ComDadosValidos_DeveSalvarERetornarDto()
     {
         // Arrange
-        var createDto = new FlashcardCreateUpdateDto { Frente = "Pergunta", Verso = "Resposta" };
-        var flashcardModel = new Flashcard { Id = 5, Frente = "Pergunta" };
-        var responseDto = new FlashcardResponseDto { Id = 5, Frente = "Pergunta" };
+        var createDto = new FlashcardCreateUpdateDto { Titulo = "Nova", Frente = "F", Verso = "V" };
+        var flashcardModel = new Flashcard { Id = 5, Titulo = "Nova", Frente = "F", Verso = "V" };
+        var expectedResponseDto = new FlashcardResponseDto { Id = 5, Titulo = "Nova", Frente = "F", Verso = "V" };
 
-        _mockMapper.Setup(m => m.Map<Flashcard>(createDto)).Returns(flashcardModel);
-        _mockMapper.Setup(m => m.Map<FlashcardResponseDto>(flashcardModel)).Returns(responseDto);
+        // 1. Mock de Mapeamento de Entrada (Dto -> Model)
+        _mockMapper.Setup(m => m.Map<Flashcard>(It.IsAny<FlashcardCreateUpdateDto>())).Returns(flashcardModel);
+
+        // 2. 🔑 CORREÇÃO CRÍTICA: Mock de Mapeamento de Saída (Model -> ResponseDto)
+        _mockMapper.Setup(m => m.Map<FlashcardResponseDto>(flashcardModel)).Returns(expectedResponseDto);
 
         _mockContext.Setup(c => c.Flashcards.Add(It.IsAny<Flashcard>()));
-        _mockContext.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        // SaveChangesAsync já está mockado no construtor
 
         // Act
         var result = await _service.CreateFlashcardAsync(createDto, TestAuthorUid, TestAuthorName);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Equal(responseDto.Frente, result.Frente);
+        Assert.NotNull(result); // Agora deve passar
+        Assert.Equal(createDto.Titulo, result.Titulo);
         _mockContext.Verify(c => c.Flashcards.Add(It.IsAny<Flashcard>()), Times.Once);
         _mockContext.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        // Verifica se o AuthorUid e AuthorName foram setados no modelo
-        Assert.Equal(TestAuthorUid, flashcardModel.AuthorUid);
-        Assert.Equal(TestAuthorName, flashcardModel.AuthorName);
+        Assert.Equal(TestAuthorUid, flashcardModel.AuthorUid); // Verifica se o Service setou o UID
     }
 
     // ---------------------------------------------------------

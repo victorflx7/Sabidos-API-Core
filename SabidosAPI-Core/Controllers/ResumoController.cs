@@ -1,10 +1,11 @@
-using System.Collections.Generic;
-using System.Security.Claims;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SabidosAPI_Core.DTOs;
+using SabidosAPI_Core.Models;
 using SabidosAPI_Core.Services;
+using System.Collections.Generic;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -18,17 +19,29 @@ public class ResumosController : ControllerBase
         _service = service;
     }
 
-    
+ 
     [HttpGet]
     public async Task<ActionResult<List<ResumoResponseDto>>> GetAll()
     {
-        var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-        if (uid is null) { return Unauthorized(); }
+        // CHECAGEM CRÍTICA 1: Se o Identity não estiver presente OU não estiver autenticado, retorne 401.
+        // Esta é a forma mais robusta de garantir que o teste Unauthorized passe.
+        if (User.Identity is null || !User.Identity.IsAuthenticated)
+        {
+            return Unauthorized();
+        }
+
+        var uid = User.FindFirst("user_id")?.Value
+                 ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                 ?? User.FindFirst("sub")?.Value;
+
+        // CHECAGEM CRÍTICA 2: Garante que o UID extraído não seja nulo, vazio ou só espaços.
+        // Mantida por segurança, mas o passo 1 deve resolver o teste.
+        if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
 
         try
         {
-            var eventos = await _service.GetAllResumosAsync(uid);
-            return Ok(eventos);
+            var resumos = await _service.GetAllResumosAsync(uid);
+            return Ok(resumos);
         }
         catch (Exception ex)
         {
@@ -36,7 +49,8 @@ public class ResumosController : ControllerBase
         }
     }
 
-    
+
+
     [HttpGet("{id}")]
     public async Task<ActionResult<ResumoResponseDto>> GetById(int id)
     {

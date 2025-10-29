@@ -3,10 +3,13 @@ using SabidosAPI_Core.Dtos;
 using Microsoft.EntityFrameworkCore;
 using AutoMapper;
 using SabidosAPI_Core.Data;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace SabidosAPI_Core.Services
 {
-    public class PomodoroService
+    // Implementa a nova interface
+    public class PomodoroService : IPomodoroService
     {
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;

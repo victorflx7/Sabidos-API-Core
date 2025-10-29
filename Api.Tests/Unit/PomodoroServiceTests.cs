@@ -12,6 +12,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using SabidosAPI_Core.AutoMapper; // Assumindo que seu PomodoroProfile está aqui
 
+// **ASSUME UMA CLASSE USER MÍNIMA PARA O SEEDING FUNCIONAR**
+// Você precisa ter certeza que a classe User está disponível para o AppDbContext no teste.
+// Adiciono uma estrutura para mostrar como o seeding deve ser feito.
+// Você pode precisar adicionar o using de SabidosAPI_Core.Models se ele não estiver implícito.
+
 namespace SabidosAPI_Core.Tests.Services
 {
     public class PomodoroServiceTests : IDisposable
@@ -48,6 +53,15 @@ namespace SabidosAPI_Core.Tests.Services
 
         private void SeedDatabase()
         {
+            // **CORREÇÃO CRÍTICA: Adicionar entidades User para satisfazer o .Include(p => p.User)
+            // Assumindo que seu modelo User tem pelo menos Id e FirebaseUid/AuthorUid
+            _context.Set<User>().AddRange(new List<User> // Use Set<User>() para ser explícito
+            {
+                // Os IDs aqui devem corresponder aos Userid nos Pomodoros
+                new User { Id = 1, FirebaseUid = _testUserUid, Name = "User Test" },
+                new User { Id = 2, FirebaseUid = _otherUserUid, Name = "Other User" }
+            });
+
             _context.Pomodoros.AddRange(new List<Pomodoro>
             {
                 new Pomodoro { Id = 1, AuthorUid = _testUserUid, Ciclos = 4, Duration = 100, TempoTrabalho = 25, TempoDescanso = 5, CreatedAt = DateTime.UtcNow.AddHours(-2), Userid = 1 },

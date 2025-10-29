@@ -14,7 +14,7 @@ namespace SabidosAPI_Core.Controllers
         // Agora depende da interface
         private readonly IPomodoroService _service;
 
-        public PomodoroController(IPomodoroService service) // Injeção de dependência da interface
+        public PomodoroController(IPomodoroService service) // InjeÃ§Ã£o de dependÃªncia da interface
         {
             _service = service;
         }

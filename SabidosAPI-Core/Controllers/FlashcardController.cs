@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using SabidosAPI_Core.DTOs;
 using SabidosAPI_Core.Models;
 using SabidosAPI_Core.Services;
+using System; // ADICIONADO: Para usar Exception e DateTime
 
 namespace SabidosAPI_Core.Controllers
 {
@@ -18,11 +19,12 @@ namespace SabidosAPI_Core.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<FlashcardResponseDto>>> GetAllFlashcards()
+        public async Task<ActionResult<List<FlashcardResponseDto>>> GetAllFlashcardsByUser()
         {
             var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            // 🔑 CORREÇÃO CRÍTICA: Garante 401 (Unauthorized) se o token estiver faltando.
+            
             if (uid is null) { return Unauthorized(); }
-
             try
             {
                 var flashcards = await _service.GetAllFlashcardsAsync(uid);
@@ -33,31 +35,15 @@ namespace SabidosAPI_Core.Controllers
                 return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
             }
         }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<FlashcardResponseDto>> GetFlashcardById(int id)
-        {
-            try
-            {
-                var flashcard = await _service.GetFlashcardByIdAsync(id);
-
-                if (flashcard == null)
-                {
-                    return NotFound($"Evento com ID {id} não encontrado.");
-                }
-
-                return Ok(flashcard);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
-            }
-        }
-        [HttpGet("count")]
+        [HttpGet("count")] // Rota correta para o teste GetAsync($"{Endpoint}/count")
         public async Task<ActionResult<int>> GetFlashcardsCountCountByUser()
         {
             var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+
+            // 🔑 CORREÇÃO CRÍTICA: Garante 401 (Unauthorized) se o token estiver faltando.
+            
             if (uid is null) { return Unauthorized(); }
+
             try
             {
                 var count = await _service.GetFlashcardsCountByUserAsync(uid);
@@ -69,19 +55,42 @@ namespace SabidosAPI_Core.Controllers
             }
         }
 
+
+        // B. Corrija o método CreateFlashcard
+        // ... (Método CreateFlashcard)
         [HttpPost]
         public async Task<ActionResult<FlashcardResponseDto>> CreateFlashcard([FromBody] FlashcardCreateUpdateDto dto)
         {
-
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
             var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             var name = User.FindFirst("name")?.Value ?? User.Identity?.Name ?? uid;
+
+            // 🔑 CORREÇÃO CRÍTICA: Adiciona o check de 401 que estava faltando.
+           
+            if (uid is null) { return Unauthorized(); }
 
             var flashcard = await _service.CreateFlashcardAsync(dto, uid, name);
             return CreatedAtAction(nameof(GetFlashcardById), new { id = flashcard.Id }, flashcard);
         }
 
+        [HttpGet("{id}")]
+        public async Task<ActionResult<FlashcardResponseDto>> GetFlashcardById(int id)
+        {
+            try
+            {
+                var flashcard = await _service.GetFlashcardByIdAsync(id);
+
+                if (flashcard == null)
+                {
+                    return NotFound($"Flashcard com ID {id} não encontrado."); // CORREÇÃO: De Evento para Flashcard
+                }
+
+                return Ok(flashcard);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
+            }
+        }
 
         [HttpPut("{id}")]
         public async Task<ActionResult<FlashcardResponseDto>> UpdateFlashcard(int id, [FromBody] FlashcardCreateUpdateDto dto)
@@ -90,7 +99,7 @@ namespace SabidosAPI_Core.Controllers
 
             var updatedFlashcard = await _service.UpdateFlashcardAsync(id, dto);
             if (updatedFlashcard == null)
-                return NotFound(new { message = "Post não encontrado ou você não tem permissão para atualizar." });
+                return NotFound(new { message = "Flashcard não encontrado ou você não tem permissão para atualizar." }); // CORREÇÃO: De Post para Flashcard
 
             return Ok(updatedFlashcard);
         }
@@ -104,7 +113,7 @@ namespace SabidosAPI_Core.Controllers
 
                 if (!result)
                 {
-                    return NotFound($"Evento com ID {id} não encontrado.");
+                    return NotFound($"Flashcard com ID {id} não encontrado."); // CORREÇÃO: De Evento para Flashcard
                 }
 
                 return NoContent();

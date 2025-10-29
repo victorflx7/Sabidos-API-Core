@@ -1,4 +1,4 @@
-using AutoMapper;
+Ôªøusing AutoMapper;
 using SabidosAPI_Core.Data;
 using SabidosAPI_Core.DTOs;
 using SabidosAPI_Core.Models;
@@ -30,15 +30,21 @@ public class UserService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erro ao buscar usu·rio por FirebaseUid: {FirebaseUid}", firebaseUid);
+            _logger.LogError(ex, "Erro ao buscar usu√°rio por FirebaseUid: {FirebaseUid}", firebaseUid);
             throw;
         }
     }
 
-
     public async Task<UserResponseDto> CreateOrUpdateAsync(string firebaseUid, string? email, UserUpdateDto? dto = null)
     {
-        using var transaction = await _db.Database.BeginTransactionAsync();
+        if (firebaseUid is null)
+            throw new ArgumentNullException(nameof(firebaseUid));
+
+        // üß© Detecta se o provider √© InMemory (testes)
+        var isInMemory = _db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
+        // Cria transa√ß√£o apenas se o provider suportar
+        using var transaction = isInMemory ? null : await _db.Database.BeginTransactionAsync();
 
         try
         {
@@ -47,46 +53,43 @@ public class UserService
 
             if (user is null)
             {
-                // Criar novo usu·rio
                 user = new User
                 {
                     FirebaseUid = firebaseUid,
                     Email = email,
-                    Name = dto?.Name ?? "Novo usu·rio",
+                    Name = dto?.Name ?? "Novo usu√°rio",
                     CreatedAt = DateTime.UtcNow
                 };
                 _db.Users.Add(user);
 
-                _logger.LogInformation("Novo usu·rio criado: {FirebaseUid}", firebaseUid);
+                _logger.LogInformation("Novo usu√°rio criado: {FirebaseUid}", firebaseUid);
             }
             else
             {
-                
                 if (dto is not null)
-                {
                     _mapper.Map(dto, user);
-                }
 
-               
                 if (!string.IsNullOrEmpty(email) && user.Email != email)
-                {
                     user.Email = email;
-                }
 
                 user.UpdatedAt = DateTime.UtcNow;
 
-                _logger.LogInformation("Usu·rio atualizado: {FirebaseUid}", firebaseUid);
+                _logger.LogInformation("Usu√°rio atualizado: {FirebaseUid}", firebaseUid);
             }
 
             await _db.SaveChangesAsync();
-            await transaction.CommitAsync();
+
+            if (!isInMemory)
+                await transaction!.CommitAsync();
 
             return _mapper.Map<UserResponseDto>(user);
         }
         catch (Exception ex)
         {
-            await transaction.RollbackAsync();
-            _logger.LogError(ex, "Erro ao criar/atualizar usu·rio: {FirebaseUid}", firebaseUid);
+            if (!isInMemory)
+                await transaction!.RollbackAsync();
+
+            _logger.LogError(ex, "Erro ao criar/atualizar usu√°rio: {FirebaseUid}", firebaseUid);
             throw;
         }
     }

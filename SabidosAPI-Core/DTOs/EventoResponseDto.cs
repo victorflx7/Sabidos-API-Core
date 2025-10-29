@@ -5,7 +5,7 @@ namespace SabidosAPI_Core.DTOs
 {
     public class EventoResponseDto
     {
-        public string Id { get; set; }
+        public int Id { get; set; } 
 
         [Required]
         [StringLength(160)]
