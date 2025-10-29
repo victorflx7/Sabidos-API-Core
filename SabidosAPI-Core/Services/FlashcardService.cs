@@ -46,8 +46,13 @@ namespace SabidosAPI_Core.Services
 
         public async Task<FlashcardResponseDto> CreateFlashcardAsync(FlashcardCreateUpdateDto flashcardDto, string authorUid, string nameAuthor)
         {
+            // ❌ CORREÇÃO CRÍTICA: O seu código anterior tinha 'Resumo' aqui, causando o erro 500.
+            // Garanta que ele mapeie para <Flashcard> e adicione em _context.Flashcards.
+
             var flashcard = _mapper.Map<Flashcard>(flashcardDto); // CORREÇÃO: Mapeando para Flashcard
-            _context.Flashcards.Add(flashcard); // CORREÇÃO: Usando DbSet Flashcards
+
+            // CORREÇÃO: Usando DbSet Flashcards, não Resumos (erro de cópia)
+            _context.Flashcards.Add(flashcard);
 
             // Atribuições que o service deve garantir
             flashcard.AuthorUid = authorUid;
@@ -58,7 +63,6 @@ namespace SabidosAPI_Core.Services
             await _context.SaveChangesAsync();
             return _mapper.Map<FlashcardResponseDto>(flashcard);
         }
-
         public async Task<FlashcardResponseDto?> UpdateFlashcardAsync(int flashcardId, FlashcardCreateUpdateDto dto)
         {
             var flashcard = await _context.Flashcards
