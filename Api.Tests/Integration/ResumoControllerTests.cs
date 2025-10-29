@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json; // Use System.Text.Json para consistência com ASP.NET Core
