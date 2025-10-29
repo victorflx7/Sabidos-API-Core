@@ -1,29 +1,26 @@
-﻿using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using SabidosAPI_Core.Data;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection.Extensions;
+﻿using AutoMapper; // Necessário para AutoMapper
 using Microsoft.AspNetCore.Authentication;
-using System.Linq;
-using System;
-using System.Reflection; // Necessário para AutoMapper
-using AutoMapper; // Necessário para AutoMapper
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using SabidosAPI_Core.Data;
 using SabidosAPI_Core.Models; // Adicione para ter acesso ao modelo Evento
+using System;
+using System.Linq;
+using System.Reflection; // Necessário para AutoMapper
+using Microsoft.Extensions.Logging;
 
 public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProgram> where TProgram : class
 {
-    // 🔑 CORREÇÃO CRÍTICA: Gera um nome de DB único por instância de IClassFixture.
-    // Isso garante que EnsureDeleted e EnsureCreated funcionem de forma isolada e resolve o erro "Key: 1 already added".
-    private static string UniqueDbName { get; } = $"IntegrationTestDb_{Guid.NewGuid()}";
-
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
 
         builder.ConfigureServices(services =>
         {
-            // 1. Limpa DbContexts existentes
+            // --- 1. Limpa DbContexts existentes ---
             var dbContextDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
 
@@ -32,14 +29,24 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                 services.Remove(dbContextDescriptor);
             }
 
-            // ⚙️ Reconfigura o contexto explicitamente como InMemory com NOME ÚNICO POR FIXTURE
-            services.AddDbContext<AppDbContext>(options =>
-                options.UseInMemoryDatabase(UniqueDbName));
+            // Remove também o próprio AppDbContext se estiver registrado como Scoped/Transient
+            var dbContextService = services.SingleOrDefault(d => d.ServiceType == typeof(AppDbContext));
+            if (dbContextService != null)
+            {
+                services.Remove(dbContextService);
+            }
 
-            // 2. Configuração do AutoMapper (Resolve o 500 Internal Server Error)
+            // --- 2. Reconfigura o context como InMemory com NOME ÚNICO POR INSTÂNCIA DA FÁBRICA ---
+            // Isso garante que cada classe de teste (IClassFixture) obtenha um DB isolado.
+            services.AddDbContext<AppDbContext>(options =>
+            {
+                options.UseInMemoryDatabase($"IntegrationTestDb_{Guid.NewGuid()}");
+            });
+
+            // --- 3. Configuração do AutoMapper ---
             services.AddAutoMapper(Assembly.GetAssembly(typeof(AppDbContext)));
 
-            // 3. Configuração do Mock de Autenticação (Mantido, para o FakeJwtHandler)
+            // --- 4. Configuração do Mock de Autenticação ---
             var authServices = services
                 .Where(s => s.ServiceType.FullName?.Contains("Microsoft.AspNetCore.Authentication") == true)
                 .ToList();
@@ -49,28 +56,25 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                 services.Remove(descriptor);
             }
 
-            services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = "FakeScheme";
-                options.DefaultChallengeScheme = "FakeScheme";
-                options.DefaultForbidScheme = "FakeScheme";
-            })
-            .AddScheme<AuthenticationSchemeOptions, FakeJwtHandler>("FakeScheme", options => { });
+            services.AddAuthentication("FakeScheme") // Define o esquema padrão aqui
+                   .AddScheme<AuthenticationSchemeOptions, FakeJwtHandler>("FakeScheme", options => { });
 
 
-            // 4. Seeding do banco de dados (Com todas as correções de nome de propriedade/DbSet)
+            // --- 5. Seeding do banco de dados ---
             var sp = services.BuildServiceProvider();
             using (var scope = sp.CreateScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var scopedServices = scope.ServiceProvider;
+                var db = scopedServices.GetRequiredService<AppDbContext>();
 
-                // Garante que o banco está limpo e criado de forma isolada
-                db.Database.EnsureDeleted();
-                db.Database.EnsureCreated();
-
-                // Seeding: Adiciona os dados necessários
-                if (!db.Eventos.Any(e => e.Id == 1))
+                try
                 {
+                    // Garante que o banco está limpo e criado
+                    // O EnsureDeleted pode falhar se o DB não existir, mas o EnsureCreated recria.
+                    db.Database.EnsureDeleted();
+                    db.Database.EnsureCreated();
+
+                    // Adiciona o Evento ID 1 para o teste de Delete
                     db.Eventos.Add(new Evento
                     {
                         Id = 1,
@@ -79,15 +83,24 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                         DataEvento = DateTime.Now
                     });
 
-                    // CORREÇÃO: Usando db.Users e propriedade Name
+                    // Adiciona o User associado ao Evento ID 1
                     db.Users.Add(new SabidosAPI_Core.Models.User
                     {
+                        // Se o User usa ID numérico como PK, ele deve ser != 1 para evitar conflito com Evento ID 1.
+                        // Se usa FirebaseUid como PK, não há problema. Assumindo FirebaseUid como PK:
                         FirebaseUid = "firebase-uid-outro-usuario",
                         Name = "Outro Usuário",
                         CreatedAt = DateTime.UtcNow
                     });
 
-                    db.SaveChanges();
+                    db.SaveChanges(); // Salva os dados de seeding
+                }
+                catch (Exception ex)
+                {
+                    // Logar o erro se o seeding falhar ajuda a depurar
+                    var logger = scopedServices.GetRequiredService<ILogger<CustomWebApplicationFactory<TProgram>>>();
+                    logger.LogError(ex, "Erro durante o seeding do banco de dados de teste.");
+                    throw; // Re-lança a exceção para que o teste falhe claramente
                 }
             }
         });
