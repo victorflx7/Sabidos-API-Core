@@ -96,7 +96,14 @@ public class EventoControllerTests : IClassFixture<CustomWebApplicationFactory<P
     {
         // Arrange
         _client.DefaultRequestHeaders.Authorization = null;
-        var createDto = new EventoResponseDto { TitleEvent = "Evento Sem Auth" };
+
+        // 🔑 CORREÇÃO: Usar EventoCreateDto também neste teste
+        var createDto = new EventoCreateDto
+        {
+            TitleEvent = "Evento Sem Auth",
+            DataEvento = DateTime.Now,
+            AuthorUid = "placeholder"
+        };
         var jsonContent = new StringContent(JsonConvert.SerializeObject(createDto), Encoding.UTF8, "application/json");
 
         // Act

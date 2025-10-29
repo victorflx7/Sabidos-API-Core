@@ -41,7 +41,7 @@ namespace SabidosAPI_Core.Services
         {
             return await _context.Eventos.CountAsync(e => e.AuthorUid == authorUid);
         }
-        public async Task<EventoResponseDto> CreateEventoAsync(EventoResponseDto eventoDto, string authorUid)
+        public async Task<EventoResponseDto> CreateEventoAsync(EventoCreateDto eventoDto, string authorUid)
         {
             var evento = _mapper.Map<Models.Evento>(eventoDto);
             evento.AuthorUid = authorUid;

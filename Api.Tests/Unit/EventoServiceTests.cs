@@ -193,24 +193,34 @@ public class EventoServiceTests
     public async Task CreateEventoAsync_ComDadosValidos_DeveSalvarERetornarDto()
     {
         // Arrange
-        var createDto = new EventoResponseDto { TitleEvent = "Reunião" };
-        var eventoModel = new Evento { Id = 5, TitleEvent = "Reunião" };
+        var createDto = new EventoCreateDto { TitleEvent = "Reunião" };
+        var eventoModel = new Evento { Id = 5, TitleEvent = "Reunião" }; // Modelo após mapear createDto
 
+        // 1. Mock: Mapeamento de Entrada (CreateDto -> Model) - OK
         _mockMapper.Setup(m => m.Map<Evento>(createDto)).Returns(eventoModel);
-        _mockMapper.Setup(m => m.Map<EventoResponseDto>(eventoModel)).Returns(createDto);
 
+        // 2. 🔑 CORREÇÃO: Mock: Mapeamento de Saída (Model -> ResponseDto)
+        // O serviço retorna _mapper.Map<EventoResponseDto>(eventoModel)
+        // Precisamos simular ESTE mapeamento para o valor de retorno.
+        var expectedResponseDto = new EventoResponseDto { Id = eventoModel.Id, TitleEvent = eventoModel.TitleEvent };
+        _mockMapper.Setup(m => m.Map<EventoResponseDto>(eventoModel)).Returns(expectedResponseDto);
+
+        // Mocks do DbContext (Add e SaveChanges)
         _mockContext.Setup(c => c.Eventos.Add(It.IsAny<Evento>()));
-        // SaveChangesAsync já está mockado no construtor
+        // SaveChangesAsync já está mockado globalmente no construtor
 
         // Act
         var result = await _service.CreateEventoAsync(createDto, TestAuthorUid);
 
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal(createDto.TitleEvent, result.TitleEvent);
-        _mockContext.Verify(c => c.Eventos.Add(It.IsAny<Evento>()), Times.Once);
+        // Assert (Linha 209 que estava falhando)
+        Assert.NotNull(result); // Deve passar agora, pois Map<EventoResponseDto> retorna expectedResponseDto
+        Assert.Equal(expectedResponseDto.TitleEvent, result.TitleEvent); // Verifica o conteúdo
+        Assert.Equal(expectedResponseDto.Id, result.Id); // Verifica o ID
+
+        // Verifica mocks
+        _mockContext.Verify(c => c.Eventos.Add(It.Is<Evento>(e => e.AuthorUid == TestAuthorUid)), Times.Once); // Garante que AuthorUid foi setado
         _mockContext.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        Assert.Equal(TestAuthorUid, eventoModel.AuthorUid);
+        Assert.Equal(TestAuthorUid, eventoModel.AuthorUid); // Verificação extra no modelo
     }
 
     // ---------------------------------------------------------
