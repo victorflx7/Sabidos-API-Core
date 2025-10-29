@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using SabidosAPI_Core.DTOs;
 using SabidosAPI_Core.Models;
 using SabidosAPI_Core.Services;
+using System; // ADICIONADO: Para usar Exception e DateTime
 
 namespace SabidosAPI_Core.Controllers
 {
@@ -17,22 +18,7 @@ namespace SabidosAPI_Core.Controllers
             _service = flashcardService;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<FlashcardResponseDto>>> GetAllFlashcards()
-        {
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (uid is null) { return Unauthorized(); }
-
-            try
-            {
-                var flashcards = await _service.GetAllFlashcardsAsync(uid);
-                return Ok(flashcards);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
-            }
-        }
+        // ... (GetAllFlashcards, GetFlashcardsCountCountByUser, CreateFlashcard)
 
         [HttpGet("{id}")]
         public async Task<ActionResult<FlashcardResponseDto>> GetFlashcardById(int id)
@@ -43,7 +29,7 @@ namespace SabidosAPI_Core.Controllers
 
                 if (flashcard == null)
                 {
-                    return NotFound($"Evento com ID {id} não encontrado.");
+                    return NotFound($"Flashcard com ID {id} não encontrado."); // CORREÇÃO: De Evento para Flashcard
                 }
 
                 return Ok(flashcard);
@@ -53,35 +39,6 @@ namespace SabidosAPI_Core.Controllers
                 return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
             }
         }
-        [HttpGet("count")]
-        public async Task<ActionResult<int>> GetFlashcardsCountCountByUser()
-        {
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (uid is null) { return Unauthorized(); }
-            try
-            {
-                var count = await _service.GetFlashcardsCountByUserAsync(uid);
-                return Ok(count);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
-            }
-        }
-
-        [HttpPost]
-        public async Task<ActionResult<FlashcardResponseDto>> CreateFlashcard([FromBody] FlashcardCreateUpdateDto dto)
-        {
-
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            var name = User.FindFirst("name")?.Value ?? User.Identity?.Name ?? uid;
-
-            var flashcard = await _service.CreateFlashcardAsync(dto, uid, name);
-            return CreatedAtAction(nameof(GetFlashcardById), new { id = flashcard.Id }, flashcard);
-        }
-
 
         [HttpPut("{id}")]
         public async Task<ActionResult<FlashcardResponseDto>> UpdateFlashcard(int id, [FromBody] FlashcardCreateUpdateDto dto)
@@ -90,7 +47,7 @@ namespace SabidosAPI_Core.Controllers
 
             var updatedFlashcard = await _service.UpdateFlashcardAsync(id, dto);
             if (updatedFlashcard == null)
-                return NotFound(new { message = "Post não encontrado ou você não tem permissão para atualizar." });
+                return NotFound(new { message = "Flashcard não encontrado ou você não tem permissão para atualizar." }); // CORREÇÃO: De Post para Flashcard
 
             return Ok(updatedFlashcard);
         }
@@ -104,7 +61,7 @@ namespace SabidosAPI_Core.Controllers
 
                 if (!result)
                 {
-                    return NotFound($"Evento com ID {id} não encontrado.");
+                    return NotFound($"Flashcard com ID {id} não encontrado."); // CORREÇÃO: De Evento para Flashcard
                 }
 
                 return NoContent();
