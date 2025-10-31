@@ -95,12 +95,18 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // -------------------------------------------------------------
-// 🚀 Pipeline de execução
+// 🚀 Pipeline de execução (ORDEM CORRETA É CRUCIAL)
 // -------------------------------------------------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    // 💡 REMOVIDO: app.UseHttpsRedirection()
+}
+else
+{
+    // 🔑 Aplicado apenas fora do Development para evitar o erro CORS/Redirect
+    app.UseHttpsRedirection();
 }
 
 app.UseHttpsRedirection();
@@ -110,9 +116,9 @@ builder.Services.AddAuthentication();
 app.UseCors("AllowSpecificOrigin");
 
 
-
-// 🧠 Ordem correta: primeiro autenticação, depois autorização
 app.UseAuthentication();
+
+// 🔑 3. AUTORIZAÇÃO
 app.UseAuthorization();
 
 app.MapControllers();

@@ -1,8 +1,8 @@
-﻿// UserController.cs
 using Microsoft.AspNetCore.Mvc;
 using SabidosAPI_Core.DTOs;
 using SabidosAPI_Core.Services;
 using Microsoft.Extensions.Logging;
+
 
 namespace SabidosAPI_Core.Controllers
 {
@@ -11,6 +11,7 @@ namespace SabidosAPI_Core.Controllers
     public class UserController : ControllerBase
     {
         private readonly UserService _service;
+
         private readonly ILogger<UserController> _logger;
 
         public UserController(UserService service, ILogger<UserController> logger)
@@ -44,6 +45,7 @@ namespace SabidosAPI_Core.Controllers
                     return Unauthorized(new { message = "Erro ao recuperar dados do usuário." });
                 }
 
+
                 _logger.LogInformation("Login validado com sucesso para: {FirebaseUid}", dto.FirebaseUid);
                 return Ok(new { 
                     success = true, 
@@ -58,9 +60,11 @@ namespace SabidosAPI_Core.Controllers
             }
         }
 
+
         // ✅ Mantido: Sincronização (usado no cadastro)
         [HttpPost("sync")]
         public async Task<IActionResult> SyncUser([FromBody] UserSyncDto dto)
+
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 

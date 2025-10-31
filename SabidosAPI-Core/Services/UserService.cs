@@ -58,7 +58,7 @@ public class UserService
     {
         if (firebaseUid is null)
             throw new ArgumentNullException(nameof(firebaseUid));
-
+      
         var isInMemory = _db.Database.ProviderName?.Contains("InMemory") ?? false;
         var transaction = isInMemory ? null : await _db.Database.BeginTransactionAsync();
 
