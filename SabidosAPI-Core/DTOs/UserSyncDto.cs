@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace SabidosAPI_Core.DTOs
 {
@@ -14,3 +14,4 @@ namespace SabidosAPI_Core.DTOs
         public string? Name { get; set; }
     }
 }
+

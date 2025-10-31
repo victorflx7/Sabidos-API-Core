@@ -1,9 +1,8 @@
-﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SabidosAPI_Core.DTOs;
 using SabidosAPI_Core.Services;
-using System.Security.Claims;
-using Microsoft.Extensions.Logging; // 👈 importante
+using Microsoft.Extensions.Logging;
+
 
 namespace SabidosAPI_Core.Controllers
 {
@@ -12,85 +11,90 @@ namespace SabidosAPI_Core.Controllers
     public class UserController : ControllerBase
     {
         private readonly UserService _service;
-        private readonly ILogger<UserController> _logger; // 👈 adiciona o logger
 
-        // ✅ Injeta também o logger no construtor
+        private readonly ILogger<UserController> _logger;
+
         public UserController(UserService service, ILogger<UserController> logger)
         {
             _service = service;
             _logger = logger;
         }
 
-        /// Rota Antiga: Retorna o perfil do usuário AUTENTICADO
-        /// Se não existir no SQL, cria automaticamente (ainda usa JWT)
-        [HttpGet("me")]
-        [Authorize]
-        public async Task<IActionResult> GetMe()
+        // 🔐 NOVA ROTA: Validação de login (sem JWT)
+        [HttpPost("validate-login")]
+        public async Task<IActionResult> ValidateLogin([FromBody] LoginValidationDto dto)
         {
-            Console.WriteLine("C# TRACE 1: Requisição GET /user/me recebida. Token Firebase é válido.");
-            var uid = User.FindFirst("user_id")?.Value
-                   ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                   ?? User.FindFirst("sub")?.Value;
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
-            var email = User.FindFirst("email")?.Value
-                     ?? User.FindFirst(ClaimTypes.Email)?.Value;
-
-            if (string.IsNullOrEmpty(uid))
+            try
             {
-                Console.WriteLine("C# TRACE 2: ERRO! Token válido, mas claim 'uid' não encontrada. Retornando 401.");
-                _logger.LogWarning("Token JWT válido recebido, mas a claim 'user_id' (ou NameIdentifier/sub) não foi encontrada.");
-                return Unauthorized("Claim de UID não encontrada no token.");
+                // Verifica se o usuário existe no SQL
+                var userExists = await _service.UserExistsAsync(dto.FirebaseUid);
+                
+                if (!userExists)
+                {
+                    _logger.LogWarning("Tentativa de login com UID não cadastrado: {FirebaseUid}", dto.FirebaseUid);
+                    return Unauthorized(new { message = "Usuário não cadastrado no sistema." });
+                }
+
+                // Busca dados completos do usuário
+                var user = await _service.GetUserByFirebaseUidAsync(dto.FirebaseUid);
+                
+                if (user == null)
+                {
+                    return Unauthorized(new { message = "Erro ao recuperar dados do usuário." });
+                }
+
+
+                _logger.LogInformation("Login validado com sucesso para: {FirebaseUid}", dto.FirebaseUid);
+                return Ok(new { 
+                    success = true, 
+                    user = user,
+                    message = "Login validado com sucesso." 
+                });
             }
-            Console.WriteLine($"C# TRACE 2: UID extraído com sucesso: {uid}");
-
-            var me = await _service.CreateOrUpdateAsync(uid, email);
-            Console.WriteLine("C# TRACE 3: Dados do usuário processados e retornando 200 OK.");
-            return Ok(me);
-        }
-        [HttpOptions("me")]
-        [AllowAnonymous]
-        public IActionResult OptionsMe()
-        {
-            // Não faz nada, apenas permite que o navegador receba as respostas CORS corretas.
-            return Ok();
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao validar login para: {FirebaseUid}", dto.FirebaseUid);
+                return StatusCode(500, new { message = "Erro interno do servidor." });
+            }
         }
 
-        /// 🌟 NOVA ROTA: Sincroniza o usuário recebendo UID e Email do Frontend.
-        /// Esta rota NÃO exige autorização (JWT)
-        
-        /// 🌟 NOVA ROTA: Sincroniza o usuário recebendo UID e Email do Frontend.
-        /// Esta rota NÃO exige autorização (JWT)
+
+        // ✅ Mantido: Sincronização (usado no cadastro)
         [HttpPost("sync")]
-        [AllowAnonymous] // 🚨 ESTA É A CHAVE NO BACKEND
         public async Task<IActionResult> SyncUser([FromBody] UserSyncDto dto)
+
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
-            // Chama o serviço existente usando os dados fornecidos pelo DTO
-            var me = await _service.CreateOrUpdateAsync(
-                dto.FirebaseUid,
-                dto.Email,
-                new UserUpdateDto { Name = dto.Name }
-            );
+            try
+            {
+                var me = await _service.CreateOrUpdateAsync(
+                    dto.FirebaseUid,
+                    dto.Email,
+                    new UserUpdateDto { Name = dto.Name }
+                );
 
-            return Ok(me);
+                _logger.LogInformation("Usuário sincronizado: {FirebaseUid}", dto.FirebaseUid);
+                return Ok(new { 
+                    success = true, 
+                    user = me,
+                    message = "Usuário sincronizado com sucesso." 
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao sincronizar usuário: {FirebaseUid}", dto.FirebaseUid);
+                return StatusCode(500, new { message = "Erro ao sincronizar usuário." });
+            }
         }
 
-        /// Atualiza perfil do usuário autenticado (Mantém [Authorize] para proteção)
-        [HttpPost("profile")]
-        [Authorize]
-        public async Task<IActionResult> UpsertProfile([FromBody] UserUpdateDto dto)
+        // 🔍 Rota para verificar saúde do serviço
+        [HttpGet("health")]
+        public IActionResult HealthCheck()
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
-            var uid = User.FindFirst("user_id")?.Value;
-            var email = User.FindFirst("email")?.Value;
-
-            if (uid is null) return Unauthorized();
-
-            var me = await _service.CreateOrUpdateAsync(uid, email, dto);
-
-            return Ok(me);
+            return Ok(new { status = "API User está funcionando", timestamp = DateTime.UtcNow });
         }
     }
 }
