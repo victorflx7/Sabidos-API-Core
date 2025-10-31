@@ -1,4 +1,5 @@
-﻿using AutoMapper;
+﻿// UserService.cs
+using AutoMapper;
 using SabidosAPI_Core.Data;
 using SabidosAPI_Core.DTOs;
 using SabidosAPI_Core.Models;
@@ -41,10 +42,8 @@ public class UserService
             throw new ArgumentNullException(nameof(firebaseUid));
 
         // 🧩 Detecta se o provider é InMemory (testes)
-        var isInMemory = _db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
-
-        // Cria transação apenas se o provider suportar
-        using var transaction = isInMemory ? null : await _db.Database.BeginTransactionAsync();
+        var isInMemory = _db.Database.ProviderName?.Contains("InMemory") ?? false;
+        var transaction = isInMemory ? null : await _db.Database.BeginTransactionAsync();
 
         try
         {
