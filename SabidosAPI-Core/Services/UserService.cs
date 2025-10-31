@@ -1,4 +1,5 @@
-﻿using AutoMapper;
+﻿// UserService.cs
+using AutoMapper;
 using SabidosAPI_Core.Data;
 using SabidosAPI_Core.DTOs;
 using SabidosAPI_Core.Models;
@@ -19,6 +20,23 @@ public class UserService
         _logger = logger;
     }
 
+    // 🔐 NOVO: Verifica se usuário existe no SQL pelo UID
+    public async Task<bool> UserExistsAsync(string firebaseUid)
+    {
+        try
+        {
+            return await _db.Users
+                .AsNoTracking()
+                .AnyAsync(u => u.FirebaseUid == firebaseUid);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao verificar existência do usuário: {FirebaseUid}", firebaseUid);
+            throw;
+        }
+    }
+
+    // 🔐 NOVO: Busca usuário completo pelo UID
     public async Task<UserResponseDto?> GetUserByFirebaseUidAsync(string firebaseUid)
     {
         try
@@ -35,16 +53,14 @@ public class UserService
         }
     }
 
+    // ✅ Mantido: Cria/atualiza usuário no SQL
     public async Task<UserResponseDto> CreateOrUpdateAsync(string firebaseUid, string? email, UserUpdateDto? dto = null)
     {
         if (firebaseUid is null)
             throw new ArgumentNullException(nameof(firebaseUid));
 
-        // 🧩 Detecta se o provider é InMemory (testes)
-        var isInMemory = _db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
-
-        // Cria transação apenas se o provider suportar
-        using var transaction = isInMemory ? null : await _db.Database.BeginTransactionAsync();
+        var isInMemory = _db.Database.ProviderName?.Contains("InMemory") ?? false;
+        var transaction = isInMemory ? null : await _db.Database.BeginTransactionAsync();
 
         try
         {
@@ -61,7 +77,6 @@ public class UserService
                     CreatedAt = DateTime.UtcNow
                 };
                 _db.Users.Add(user);
-
                 _logger.LogInformation("Novo usuário criado: {FirebaseUid}", firebaseUid);
             }
             else
@@ -73,7 +88,6 @@ public class UserService
                     user.Email = email;
 
                 user.UpdatedAt = DateTime.UtcNow;
-
                 _logger.LogInformation("Usuário atualizado: {FirebaseUid}", firebaseUid);
             }
 

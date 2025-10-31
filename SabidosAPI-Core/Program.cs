@@ -59,25 +59,25 @@ if (builder.Environment.IsEnvironment("Testing"))
     builder.Services.AddAuthentication("TestScheme")
         .AddScheme<AuthenticationSchemeOptions, FakeJwtHandler>("TestScheme", options => { });
 }
-else
-{
-    // 🔐 JWT Bearer (Firebase)
-    var firebaseProjectId = builder.Configuration["Firebase:ProjectId"];
+//else
+//{
+//    // 🔐 JWT Bearer (Firebase)
+//    var firebaseProjectId = builder.Configuration["Firebase:ProjectId"];
 
-    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(options =>
-        {
-            options.Authority = $"https://securetoken.google.com/{firebaseProjectId}";
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuer = $"https://securetoken.google.com/{firebaseProjectId}",
-                ValidateAudience = true,
-                ValidAudience = firebaseProjectId,
-                ValidateLifetime = true
-            };
-        });
-}
+//    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+//        .AddJwtBearer(options =>
+//        {
+//            options.Authority = $"https://securetoken.google.com/{firebaseProjectId}";
+//            options.TokenValidationParameters = new TokenValidationParameters
+//            {
+//                ValidateIssuer = true,
+//                ValidIssuer = $"https://securetoken.google.com/{firebaseProjectId}",
+//                ValidateAudience = true,
+//                ValidAudience = firebaseProjectId,
+//                ValidateLifetime = true
+//            };
+//        });
+//}
 
 // -------------------------------------------------------------
 // 🧩 CORS
@@ -105,7 +105,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+builder.Services.AddAuthentication(); 
+
 app.UseCors("AllowSpecificOrigin");
+
+
 
 // 🧠 Ordem correta: primeiro autenticação, depois autorização
 app.UseAuthentication();
