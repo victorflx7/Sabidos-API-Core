@@ -6,14 +6,18 @@ namespace SabidosAPI_Core.DTOs
     {
 
         [Required]
-        [StringLength(160)]
-        public string? TitleEvent { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string TitleEvent { get; set; } = string.Empty;
+
+        [MaxLength(500)]
+        public string? DescriptionEvent { get; set; }
 
         [Required]
-        public DateTime? DataEvento { get; set; }
+        public DateTime DataEvento { get; set; }
 
-        [Required]
-        [MaxLength(160)]
-        public string AuthorUid { get; set; } = string.Empty;
+        [MaxLength(100)]
+        public string? LocalEvento { get; set; }
+
+        public bool IsCompleted { get; set; } = false;
     }
 }
