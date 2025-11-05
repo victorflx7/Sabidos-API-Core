@@ -20,6 +20,7 @@ namespace SabidosAPI_Core.Services
             _logger = logger;
         }
 
+
         public async Task<List<EventoResponseDto>> GetAllEventosAsync(string? authorUid = null)
         {
             try

@@ -18,6 +18,9 @@ namespace SabidosAPI_Core.DTOs
         [MaxLength(100)]
         public string? LocalEvento { get; set; }
 
+        [Required]
+        public string AuthorUid { get; set; } = string.Empty;
+
         public bool IsCompleted { get; set; } = false;
     }
 }
