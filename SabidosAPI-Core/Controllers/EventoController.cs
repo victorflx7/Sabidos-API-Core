@@ -1,192 +1,248 @@
-﻿using System.Security.Claims;
+﻿// Controllers/EventosController.cs
 using Microsoft.AspNetCore.Mvc;
 using SabidosAPI_Core.DTOs;
 using SabidosAPI_Core.Services;
-using Microsoft.AspNetCore.Authorization; // ADICIONADO: Necessário para [Authorize]
-using System; // ADICIONADO: Necessário para Exception
-using System.Collections.Generic; // ADICIONADO: Necessário para IEnumerable
-using System.Threading.Tasks; // ADICIONADO: Necessário para Task
+using Microsoft.Extensions.Logging;
 
 namespace SabidosAPI_Core.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize] // 🔑 CORREÇÃO: Adiciona autorização para todo o controller
     public class EventosController : ControllerBase
     {
-        // CORREÇÃO: Usar a interface IEventoService para melhor testabilidade (opcional, mas recomendado)
-        // Se você ainda não criou a interface, pode manter EventoService por agora.
-        private readonly EventoService _eventoService;
+        private readonly IEventoService _eventoService;
+        private readonly UserService _userService;
+        private readonly ILogger<EventosController> _logger;
 
-        public EventosController(EventoService eventoService) // Injete IEventoService se tiver criado
+        public EventosController(IEventoService eventoService, UserService userService, ILogger<EventosController> logger)
         {
             _eventoService = eventoService;
+            _userService = userService;
+            _logger = logger;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<EventoResponseDto>>> GetAllEventos()
+        // 📖 GET ALL - Pode filtrar por usuário (agora com POST)
+        [HttpPost("list")]
+        public async Task<IActionResult> GetAllEventos([FromBody] EventoListRequestDto request)
         {
-            // 🔑 CORREÇÃO: Checagem de UID robusta
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
-
             try
             {
-                var eventos = await _eventoService.GetAllEventosAsync(uid);
-                return Ok(eventos);
+                var eventos = await _eventoService.GetAllEventosAsync(request.FirebaseUid);
+                return Ok(new { success = true, data = eventos });
             }
             catch (Exception ex)
             {
-                // Logar a exceção é uma boa prática
-                return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
+                _logger.LogError(ex, "Erro ao buscar eventos");
+                return StatusCode(500, new { success = false, message = "Erro interno do servidor" });
             }
         }
 
+        // 📖 GET BY ID (mantém GET pois não expõe UID)
         [HttpGet("{id}")]
-        public async Task<ActionResult<EventoResponseDto>> GetEventoById(int id)
+        public async Task<IActionResult> GetEventoById(int id)
         {
-            // 🔑 CORREÇÃO: Adicionar checagem de UID que estava faltando
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
-
             try
             {
-                var evento = await _eventoService.GetEventosByIdAsync(id);
-
+                var evento = await _eventoService.GetEventoByIdAsync(id);
+                
                 if (evento == null)
-                {
-                    return NotFound($"Evento com ID {id} não encontrado.");
-                }
+                    return NotFound(new { success = false, message = "Evento não encontrado" });
 
-                // OPCIONAL: Verificar se o evento pertence ao usuário (uid)
-                // if (evento.AuthorUid != uid) return Forbid(); // Ou NotFound()
-
-                return Ok(evento);
+                return Ok(new { success = true, data = evento });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
+                _logger.LogError(ex, "Erro ao buscar evento: {EventoId}", id);
+                return StatusCode(500, new { success = false, message = "Erro interno do servidor" });
             }
         }
 
-        [HttpGet("count")]
-        public async Task<ActionResult<int>> GetEventosCountCountByUser()
+        // 🔢 COUNT por usuário (agora com POST)
+        [HttpPost("count")]
+        public async Task<IActionResult> GetEventosCountByUser([FromBody] UserRequestDto request)
         {
-            // 🔑 CORREÇÃO: Checagem de UID robusta
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
+            if (string.IsNullOrEmpty(request.FirebaseUid))
+                return BadRequest(new { success = false, message = "Firebase UID é obrigatório" });
 
             try
             {
-                var count = await _eventoService.GetEventosCountByUserAsync(uid);
-                return Ok(count);
+                var count = await _eventoService.GetEventosCountByUserAsync(request.FirebaseUid);
+                return Ok(new { success = true, data = count });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
+                _logger.LogError(ex, "Erro ao contar eventos do usuário: {FirebaseUid}", request.FirebaseUid);
+                return StatusCode(500, new { success = false, message = "Erro interno do servidor" });
             }
         }
 
+        // ➕ CREATE - Já está correto (usa Body)
         [HttpPost]
-        // 🔑 CORREÇÃO: Receber EventoCreateDto, não EventoResponseDto
-        public async Task<ActionResult<EventoResponseDto>> CreateEvento([FromBody] EventoCreateDto dto)
+        public async Task<IActionResult> CreateEvento([FromBody] EventoCreateRequestDto request)
         {
-            // 🔑 CORREÇÃO: Checagem de UID robusta
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrWhiteSpace(uid)) return Unauthorized();
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
 
             try
             {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
+                var userExists = await _userService.UserExistsAsync(request.FirebaseUid);
+                if (!userExists)
+                    return Unauthorized(new { success = false, message = "Usuário não autorizado" });
 
-                // 🔑 CORREÇÃO: Passar o DTO correto para o serviço
-                // Assumindo que o serviço foi atualizado para aceitar EventoCreateDto
-                // Se o serviço ainda espera EventoResponseDto, você precisará mapear aqui ou ajustar o serviço.
-                // Vou assumir que o serviço foi ajustado ou que o mapeamento funciona de CreateDto -> Model.
-
-                // Ajuste aqui se o seu serviço espera EventoResponseDto
-                // var eventoParaCriar = _mapper.Map<EventoResponseDto>(dto); // Exemplo se precisar mapear
-                // var createdEvento = await _eventoService.CreateEventoAsync(eventoParaCriar, uid); 
-
-                // Assumindo que o serviço aceita o CreateDto ou mapeia internamente:
-                var createdEvento = await _eventoService.CreateEventoAsync(dto, uid); // Passa o EventoCreateDto
-
-                return CreatedAtAction(nameof(GetEventoById), new { id = createdEvento.Id }, createdEvento);
+                var evento = await _eventoService.CreateEventoAsync(request.EventoData, request.FirebaseUid);
+                
+                _logger.LogInformation("Novo evento criado por: {FirebaseUid}", request.FirebaseUid);
+                return Ok(new { success = true, data = evento, message = "Evento criado com sucesso" });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
+                _logger.LogError(ex, "Erro ao criar evento para: {FirebaseUid}", request.FirebaseUid);
+                return StatusCode(500, new { success = false, message = "Erro ao criar evento" });
             }
         }
 
+        // ✏️ UPDATE - Já está correto (usa Body)
         [HttpPut("{id}")]
-        // 🔑 CORREÇÃO: Idealmente, Update usaria um DTO específico (EventoUpdateDto)
-        // Mantendo EventoResponseDto por enquanto, mas adicionando checagem de UID
-        public async Task<ActionResult<EventoResponseDto>> UpdateEvento(int id, [FromBody] EventoResponseDto eventoDto)
+        public async Task<IActionResult> UpdateEvento(int id, [FromBody] EventoUpdateRequestDto request)
         {
-            // 🔑 CORREÇÃO: Adicionar checagem de UID
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
 
             try
             {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
+                var evento = await _eventoService.UpdateEventoAsync(id, request.EventoData, request.FirebaseUid);
+                
+                if (evento == null)
+                    return NotFound(new { success = false, message = "Evento não encontrado" });
 
-                // OPCIONAL: Antes de atualizar, verificar se o evento pertence ao usuário
-                // var eventoExistente = await _eventoService.GetEventosByIdAsync(id);
-                // if (eventoExistente == null) return NotFound();
-                // if (eventoExistente.AuthorUid != uid) return Forbid(); // Ou NotFound()
-
-                var updatedEvento = await _eventoService.UpdateEventoAsync(id, eventoDto);
-
-                if (updatedEvento == null)
-                {
-                    return NotFound($"Evento com ID {id} não encontrado.");
-                }
-
-                return Ok(updatedEvento);
+                return Ok(new { success = true, data = evento, message = "Evento atualizado com sucesso" });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized(new { success = false, message = "Você não tem permissão para editar este evento" });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
+                _logger.LogError(ex, "Erro ao atualizar evento: {EventoId}", id);
+                return StatusCode(500, new { success = false, message = "Erro ao atualizar evento" });
             }
         }
 
+        // 🗑️ DELETE - Corrigido para usar Body
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteEvento(int id)
+        public async Task<IActionResult> DeleteEvento(int id, [FromBody] UserRequestDto request)
         {
-            // 🔑 CORREÇÃO: Adicionar checagem de UID
-            var uid = User.FindFirst("user_id")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrWhiteSpace(uid)) { return Unauthorized(); }
-
             try
             {
-                // OPCIONAL: Verificar permissão antes de deletar
-                // var eventoExistente = await _eventoService.GetEventosByIdAsync(id);
-                // if (eventoExistente == null) return NotFound();
-                // if (eventoExistente.AuthorUid != uid) return Forbid(); // Ou NotFound()
-
-                var result = await _eventoService.DeleteEventoAsync(id);
-
+                var result = await _eventoService.DeleteEventoAsync(id, request.FirebaseUid);
+                
                 if (!result)
-                {
-                    return NotFound($"Evento com ID {id} não encontrado.");
-                }
+                    return NotFound(new { success = false, message = "Evento não encontrado" });
 
-                return NoContent();
+                return Ok(new { success = true, message = "Evento excluído com sucesso" });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized(new { success = false, message = "Você não tem permissão para excluir este evento" });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
+                _logger.LogError(ex, "Erro ao excluir evento: {EventoId}", id);
+                return StatusCode(500, new { success = false, message = "Erro ao excluir evento" });
             }
         }
 
+        // 📋 GET USER EVENTOS - Corrigido para usar Body
+        [HttpPost("user")]
+        public async Task<IActionResult> GetUserEventos([FromBody] UserRequestDto request)
+        {
+            try
+            {
+                var eventos = await _eventoService.GetAllEventosAsync(request.FirebaseUid);
+                return Ok(new { success = true, data = eventos });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar eventos do usuário: {FirebaseUid}", request.FirebaseUid);
+                return StatusCode(500, new { success = false, message = "Erro interno do servidor" });
+            }
+        }
+
+        // 📅 GET EVENTOS POR RANGE DE DATA - Corrigido
+        [HttpPost("range")]
+        public async Task<IActionResult> GetEventosByDateRange([FromBody] EventoRangeRequestDto request)
+        {
+            try
+            {
+                var eventos = await _eventoService.GetEventosByDateRangeAsync(
+                    request.StartDate, 
+                    request.EndDate, 
+                    request.FirebaseUid);
+                
+                return Ok(new { success = true, data = eventos });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar eventos por range de data");
+                return StatusCode(500, new { success = false, message = "Erro interno do servidor" });
+            }
+        }
+
+        // 🔮 GET PRÓXIMOS EVENTOS - Corrigido
+        [HttpPost("upcoming")]
+        public async Task<IActionResult> GetUpcomingEventos([FromBody] EventoUpcomingRequestDto request)
+        {
+            try
+            {
+                var eventos = await _eventoService.GetUpcomingEventosAsync(
+                    request.Days, 
+                    request.FirebaseUid);
+                
+                return Ok(new { success = true, data = eventos });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar próximos eventos");
+                return StatusCode(500, new { success = false, message = "Erro interno do servidor" });
+            }
+        }
+
+        // 🔍 VERIFICAR SE EVENTO PERTENCE AO USUÁRIO - Corrigido
+        [HttpPost("{id}/belongs-to")]
+        public async Task<IActionResult> EventoBelongsToUser(int id, [FromBody] UserRequestDto request)
+        {
+            try
+            {
+                var belongs = await _eventoService.EventoBelongsToUserAsync(id, request.FirebaseUid);
+                return Ok(new { success = true, data = belongs });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao verificar propriedade do evento: {EventoId}", id);
+                return StatusCode(500, new { success = false, message = "Erro interno do servidor" });
+            }
+        }
+    }
+
+    // 🔐 NOVOS DTOs PARA REQUESTS SEGURAS
+    public class EventoListRequestDto
+    {
+        public string? FirebaseUid { get; set; }
+    }
+
+    public class EventoRangeRequestDto
+    {
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public string? FirebaseUid { get; set; }
+    }
+
+    public class EventoUpcomingRequestDto
+    {
+        public int Days { get; set; } = 7;
+        public string? FirebaseUid { get; set; }
+    }
+}
         //[HttpGet("recent")]
         //public async Task<ActionResult<IEnumerable<EventoResponseDto>>> GetRecentEventos()
         //{
@@ -202,5 +258,3 @@ namespace SabidosAPI_Core.Controllers
         //        return StatusCode(500, $"Erro interno do servidor: {ex.Message}");
         //    }
         //}
-    }
-}

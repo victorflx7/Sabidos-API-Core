@@ -1,23 +1,36 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿// Models/Evento.cs
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
-namespace SabidosAPI_Core.Models
+namespace SabidosAPI_Core.Models;
+
+public class Evento
 {
-    public class Evento
-    {
-        [Required]
-        public int Id { get; set; }
+    [Key]
+    public int Id { get; set; }
 
-        [Required]
-        [StringLength(160)]
-        public string? TitleEvent { get; set; } = string.Empty;
+    [Required]
+    [StringLength(160)]
+    public string TitleEvent { get; set; } = string.Empty;
 
-        [Required]
-        public DateTime? DataEvento { get; set; }
+    [StringLength(500)]
+    public string? DescriptionEvent { get; set; }
 
-        [Required]
-        [MaxLength(160)]
-        public string AuthorUid { get; set; } = string.Empty;
+    [Required]
+    public DateTime DataEvento { get; set; }
 
-        public User User { get; set; } = null!;
-    }
+    [StringLength(100)]
+    public string? LocalEvento { get; set; }
+
+    public bool IsCompleted { get; set; } = false;
+
+    // 🔗 Relacionamento com User
+    [Required]
+    [StringLength(160)]
+    public string AuthorUid { get; set; } = string.Empty;
+
+    public virtual User? User { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
 }

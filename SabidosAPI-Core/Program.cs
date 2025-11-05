@@ -2,10 +2,12 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using SabidosAPI_Core.AutoMapper;
 using SabidosAPI_Core.Data;
 using SabidosAPI_Core.Mappings;
 using SabidosAPI_Core.Profiles;
 using SabidosAPI_Core.Services;
+
 
 var builder = WebApplication.CreateBuilder(args);
 Console.WriteLine($"🌱 Ambiente atual: {builder.Environment.EnvironmentName}");
@@ -34,16 +36,15 @@ else
 builder.Services.AddAutoMapper(typeof(UserProfile));
 builder.Services.AddAutoMapper(typeof(ResumoProfile));
 builder.Services.AddAutoMapper(typeof(EventoProfile));
+builder.Services.AddAutoMapper(typeof(PomodoroProfile)); // ✅ ADICIONAR se tiver
 
 builder.Services.AddLogging();
-builder.Services.AddAuthorization();
 
 // ✅ Registro de serviços da aplicação
-
 builder.Services.AddScoped<ResumoService>();
-builder.Services.AddScoped<EventoService>();
+builder.Services.AddScoped<IEventoService, EventoService>(); // ✅ USAR interface
 builder.Services.AddScoped<UserService>();
-builder.Services.AddScoped<PomodoroService>();
+builder.Services.AddScoped<IPomodoroService, PomodoroService>(); // ✅ USAR interface
 builder.Services.AddScoped<FlashcardService>();
 
 builder.Services.AddControllers();
@@ -59,25 +60,13 @@ if (builder.Environment.IsEnvironment("Testing"))
     builder.Services.AddAuthentication("TestScheme")
         .AddScheme<AuthenticationSchemeOptions, FakeJwtHandler>("TestScheme", options => { });
 }
-//else
-//{
-//    // 🔐 JWT Bearer (Firebase)
-//    var firebaseProjectId = builder.Configuration["Firebase:ProjectId"];
+else
+{
+    // 🔐 Authentication básica (sem JWT)
+    builder.Services.AddAuthentication(); // ✅ MOVER para antes do Build()
+}
 
-//    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-//        .AddJwtBearer(options =>
-//        {
-//            options.Authority = $"https://securetoken.google.com/{firebaseProjectId}";
-//            options.TokenValidationParameters = new TokenValidationParameters
-//            {
-//                ValidateIssuer = true,
-//                ValidIssuer = $"https://securetoken.google.com/{firebaseProjectId}",
-//                ValidateAudience = true,
-//                ValidAudience = firebaseProjectId,
-//                ValidateLifetime = true
-//            };
-//        });
-//}
+builder.Services.AddAuthorization(); // ✅ MOVER para antes do Build()
 
 // -------------------------------------------------------------
 // 🧩 CORS
@@ -92,6 +81,7 @@ builder.Services.AddCors(options =>
     });
 });
 
+// ✅ AGORA construímos a aplicação
 var app = builder.Build();
 
 // -------------------------------------------------------------
@@ -101,26 +91,24 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    // 💡 REMOVIDO: app.UseHttpsRedirection()
 }
-else
+
+// 🔑 1. CORS: DEVE VIR ANTES de tudo que possa bloquear ou redirecionar
+app.UseCors("AllowSpecificOrigin");
+
+// 🔑 2. HTTPS Redirection (apenas em produção)
+if (!app.Environment.IsDevelopment())
 {
-    // 🔑 Aplicado apenas fora do Development para evitar o erro CORS/Redirect
     app.UseHttpsRedirection();
 }
 
-app.UseHttpsRedirection();
-
-builder.Services.AddAuthentication(); 
-
-app.UseCors("AllowSpecificOrigin");
-
-
+// 🔑 3. AUTENTICAÇÃO
 app.UseAuthentication();
 
-// 🔑 3. AUTORIZAÇÃO
+// 🔑 4. AUTORIZAÇÃO
 app.UseAuthorization();
 
+// 🔑 5. CONTROLLERS
 app.MapControllers();
 
 app.Run();

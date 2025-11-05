@@ -1,25 +1,26 @@
 ﻿using AutoMapper;
-using SabidosAPI_Core.Models;
 using SabidosAPI_Core.DTOs;
+using SabidosAPI_Core.Models;
 
-namespace SabidosAPI_Core.Mappings
+public class EventoProfile : Profile
 {
-    public class EventoProfile : Profile
+    public EventoProfile()
     {
-        public EventoProfile()
-        {
-            // Model -> ResponseDto
-            // 🔑 CORRIGIDO: Removido o .ForMember para Id, permitindo mapeamento automático (int para int)
-            CreateMap<Evento, EventoResponseDto>()
-                // Se EventoResponseDto.Id for INT, remova o mapeamento manual do Id ou remova o .ToString()
-                .ForMember(dest => dest.TitleEvent, opt => opt.MapFrom(src => src.TitleEvent ?? string.Empty))
-                .ForMember(dest => dest.DataEvento, opt => opt.MapFrom(src => src.DataEvento.HasValue ? src.DataEvento.Value : default));
+        // Model → Response DTO
+        CreateMap<Evento, EventoResponseDto>()
+            .ForMember(dest => dest.AuthorName,
+                       opt => opt.MapFrom(src => src.User != null ? src.User.Name : "Usuário"));
 
-            // CreateDto -> Model (Este mapeamento estava OK)
-            CreateMap<EventoCreateDto, Evento>()
-                .ForMember(dest => dest.TitleEvent, opt => opt.MapFrom(src => src.TitleEvent ?? string.Empty))
-                .ForMember(dest => dest.DataEvento, opt => opt.MapFrom(src => src.DataEvento))
-                .ForMember(dest => dest.AuthorUid, opt => opt.MapFrom(src => src.AuthorUid));
-        }
+        // ✅ CORRIGIDO: Mapeamento explícito
+        CreateMap<EventoCreateDto, Evento>()
+            .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => DateTime.UtcNow))
+            .ForMember(dest => dest.IsCompleted, opt => opt.MapFrom(src => false))
+            .ForMember(dest => dest.DescriptionEvent, opt => opt.MapFrom(src => src.DescriptionEvent)) // ✅
+            .ForMember(dest => dest.LocalEvento, opt => opt.MapFrom(src => src.LocalEvento));         // ✅
+
+        // Update DTO → Model  
+        CreateMap<EventoUpdateDto, Evento>()
+            .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => DateTime.UtcNow))
+            .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
     }
 }
