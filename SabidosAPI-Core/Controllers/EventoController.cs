@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SabidosAPI_Core.DTOs;
 using SabidosAPI_Core.Services;
 using Microsoft.Extensions.Logging;
-
+using System.ComponentModel.DataAnnotations;
 namespace SabidosAPI_Core.Controllers
 {
     [ApiController]
@@ -19,6 +19,24 @@ namespace SabidosAPI_Core.Controllers
             _eventoService = eventoService;
             _userService = userService;
             _logger = logger;
+        }
+        // 📖 GET USER EVENTOS - Corrigido para usar POST
+        [HttpPost("user")]
+        public async Task<IActionResult> GetUserEventos([FromBody] UserRequestDto request)
+        {
+            if (string.IsNullOrEmpty(request.FirebaseUid))
+                return BadRequest(new { success = false, message = "Firebase UID é obrigatório" });
+
+            try
+            {
+                var eventos = await _eventoService.GetAllEventosAsync(request.FirebaseUid);
+                return Ok(new { success = true, data = eventos });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar eventos do usuário: {FirebaseUid}", request.FirebaseUid);
+                return StatusCode(500, new { success = false, message = "Erro interno do servidor" });
+            }
         }
 
         // 📖 GET ALL - Pode filtrar por usuário (agora com POST)
@@ -153,19 +171,10 @@ namespace SabidosAPI_Core.Controllers
         }
 
         // 📋 GET USER EVENTOS - Corrigido para usar Body
-        [HttpPost("user")]
-        public async Task<IActionResult> GetUserEventos([FromBody] UserRequestDto request)
+        public class UserRequestDto
         {
-            try
-            {
-                var eventos = await _eventoService.GetAllEventosAsync(request.FirebaseUid);
-                return Ok(new { success = true, data = eventos });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao buscar eventos do usuário: {FirebaseUid}", request.FirebaseUid);
-                return StatusCode(500, new { success = false, message = "Erro interno do servidor" });
-            }
+            [Required]
+            public string FirebaseUid { get; set; } = string.Empty;
         }
 
         // 📅 GET EVENTOS POR RANGE DE DATA - Corrigido
@@ -225,6 +234,7 @@ namespace SabidosAPI_Core.Controllers
     }
 
     // 🔐 NOVOS DTOs PARA REQUESTS SEGURAS
+
     public class EventoListRequestDto
     {
         public string? FirebaseUid { get; set; }

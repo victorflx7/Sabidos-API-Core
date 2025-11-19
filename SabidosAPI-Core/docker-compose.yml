@@ -1,0 +1,40 @@
+﻿services:
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      - DB_CONNECTION_STRING=Server=database;Database=SabidosDB;User=sa;Password=Sabidos@2024!;TrustServerCertificate=true;Connect Timeout=30;
+      - ASPNETCORE_ENVIRONMENT=Development  # 👈 MUDA PARA DEVELOPMENT
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  database:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - SA_PASSWORD=Sabidos@2024!
+      - ACCEPT_EULA=Y
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+    networks:
+      - app-network
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "Sabidos@2024!" -Q "SELECT 1" || exit 0
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 60s
+
+volumes:
+  sql_data:
+
+networks:
+  app-network:
+    driver: bridge

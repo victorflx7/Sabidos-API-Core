@@ -16,11 +16,11 @@ namespace SabidosAPI_Core.Dtos
         [Required]
         public int TempoDescanso { get; set; }
 
-        [Required]
-        public int Userid { get; set; }
+        //[Required]
+        //public int Userid { get; set; }
 
-        [Required]
-        [MaxLength(160)]
-        public string AuthorUid { get; set; } = string.Empty;
+        //[Required]
+        //[MaxLength(160)]
+        //public string AuthorUid { get; set; } = string.Empty;
     }
 }
