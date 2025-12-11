@@ -197,25 +197,6 @@ namespace SabidosAPI_Core.Controllers
             }
         }
 
-        // 🔮 GET PRÓXIMOS EVENTOS - Corrigido
-        [HttpPost("upcoming")]
-        public async Task<IActionResult> GetUpcomingEventos([FromBody] EventoUpcomingRequestDto request)
-        {
-            try
-            {
-                var eventos = await _eventoService.GetUpcomingEventosAsync(
-                    request.Days, 
-                    request.FirebaseUid);
-                
-                return Ok(new { success = true, data = eventos });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao buscar próximos eventos");
-                return StatusCode(500, new { success = false, message = "Erro interno do servidor" });
-            }
-        }
-
         // 🔍 VERIFICAR SE EVENTO PERTENCE AO USUÁRIO - Corrigido
         [HttpPost("{id}/belongs-to")]
         public async Task<IActionResult> EventoBelongsToUser(int id, [FromBody] UserRequestDto request)
@@ -231,7 +212,53 @@ namespace SabidosAPI_Core.Controllers
                 return StatusCode(500, new { success = false, message = "Erro interno do servidor" });
             }
         }
+
+        // Controllers/EventosController.cs - Métodos adicionais
+
+        [HttpPost("recent")]
+        public async Task<IActionResult> GetRecentEventos([FromBody] RecentEventosRequestDto request)
+        {
+            if (string.IsNullOrWhiteSpace(request.FirebaseUid))
+                return BadRequest(new { success = false, message = "FirebaseUid é obrigatório" });
+
+            try
+            {
+                var eventos = await _eventoService.GetProximosEventosDoUsuarioAsync(request.FirebaseUid, request.Count);
+                return Ok(new { success = true, data = eventos });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar eventos recentes do usuário {Uid}", request.FirebaseUid);
+                return StatusCode(500, new { success = false, message = "Erro interno do servidor" });
+            }
+        }
+
+        [HttpPost("upcoming")]
+        public async Task<IActionResult> GetUpcomingEventos([FromBody] EventoUpcomingRequestDto request)
+        {
+            if (string.IsNullOrWhiteSpace(request.FirebaseUid))
+                return BadRequest(new { success = false, message = "FirebaseUid é obrigatório" });
+
+            try
+            {
+                var eventos = await _eventoService.GetUpcomingEventosAsync(request.Days, request.FirebaseUid);
+                return Ok(new { success = true, data = eventos });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar próximos eventos do usuário {Uid}", request.FirebaseUid);
+                return StatusCode(500, new { success = false, message = "Erro interno do servidor" });
+            }
+        }
+
     }
+    public class RecentEventosRequestDto
+    {
+        public string FirebaseUid { get; set; } = string.Empty;
+        public int Count { get; set; } = 5;
+    }
+
+
 
     // 🔐 NOVOS DTOs PARA REQUESTS SEGURAS
 

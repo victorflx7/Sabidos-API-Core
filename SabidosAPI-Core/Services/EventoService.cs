@@ -217,13 +217,47 @@ namespace SabidosAPI_Core.Services
             }
         }
 
-        public async Task<List<EventoResponseDto>> GetUpcomingEventosAsync(int days = 7, string? authorUid = null)
+        public async Task<List<EventoResponseDto>> GetProximosEventosDoUsuarioAsync(string userId, int count)
         {
-            var startDate = DateTime.UtcNow;
-            var endDate = startDate.AddDays(days);
+            var agora = DateTime.Now;
+            var limiteRecente = agora.AddDays(-7); // Eventos dos últimos 7 dias
 
-            return await GetEventosByDateRangeAsync(startDate, endDate, authorUid);
+            var eventos = await _context.Eventos
+                .Where(e => e.AuthorUid == userId &&
+                            e.DataEvento <= agora && // Eventos que já aconteceram
+                            e.DataEvento >= limiteRecente) // Dos últimos 7 dias
+                .OrderByDescending(e => e.DataEvento) // Mais recentes primeiro
+                .Take(count)
+                .Include(e => e.User)
+                .ToListAsync();
+
+            return _mapper.Map<List<EventoResponseDto>>(eventos);
         }
+
+        public async Task<List<EventoResponseDto>> GetUpcomingEventosAsync(int days = 7, string? userId = null)
+        {
+            var agora = DateTime.Now;
+            var limiteFuturo = agora.AddDays(days);
+
+            var query = _context.Eventos
+                .Where(e => e.DataEvento >= agora && e.DataEvento <= limiteFuturo);
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                query = query.Where(e => e.AuthorUid == userId);
+            }
+
+            var eventos = await query
+                .OrderBy(e => e.DataEvento) // Próximos eventos primeiro
+                .Include(e => e.User)
+                .ToListAsync();
+
+            return _mapper.Map<List<EventoResponseDto>>(eventos);
+        }
+
+        
+
+
     }
 }
 //public async Task<List<EventoResponseDto>> GetRecentEventosAsync(int count)
