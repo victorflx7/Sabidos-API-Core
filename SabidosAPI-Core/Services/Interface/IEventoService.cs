@@ -21,5 +21,7 @@ namespace SabidosAPI_Core.Services
         Task<bool> EventoBelongsToUserAsync(int eventoId, string userFirebaseUid);
         Task<List<EventoResponseDto>> GetEventosByDateRangeAsync(DateTime startDate, DateTime endDate, string? authorUid = null);
         Task<List<EventoResponseDto>> GetUpcomingEventosAsync(int days = 7, string? authorUid = null);
-    }
+
+        Task<List<EventoResponseDto>> GetProximosEventosDoUsuarioAsync(string userId, int count);
+    } 
 }
