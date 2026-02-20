@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
-using SabidosAPI_Core.DTOs;
-using SabidosAPI_Core.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SabidosAPI_Core.DTOs;
+using SabidosAPI_Core.Models;
+using SabidosAPI_Core.Services;
 
 
 namespace SabidosAPI_Core.Controllers
@@ -20,74 +22,127 @@ namespace SabidosAPI_Core.Controllers
             _logger = logger;
         }
 
-        // 🔐 NOVA ROTA: Validação de login (sem JWT)
         [HttpPost("validate-login")]
-        public async Task<IActionResult> ValidateLogin([FromBody] LoginValidationDto dto)
+        public async Task<IActionResult> ValidateLogin([FromBody] LoginValidationDto request)
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            if (string.IsNullOrEmpty(request.FirebaseUid))
+                return BadRequest(new { message = "FirebaseUid é obrigatório." });
 
-            try
+            var user = await _service.GetUserByFirebaseUidAsync(request.FirebaseUid);
+
+            if (user == null)
             {
-                // Verifica se o usuário existe no SQL
-                var userExists = await _service.UserExistsAsync(dto.FirebaseUid);
-                
-                if (!userExists)
+                // 🔥 NÃO retorna 401
+                return Ok(new
                 {
-                    _logger.LogWarning("Tentativa de login com UID não cadastrado: {FirebaseUid}", dto.FirebaseUid);
-                    return Unauthorized(new { message = "Usuário não cadastrado no sistema." });
-                }
-
-                // Busca dados completos do usuário
-                var user = await _service.GetUserByFirebaseUidAsync(dto.FirebaseUid);
-                
-                if (user == null)
-                {
-                    return Unauthorized(new { message = "Erro ao recuperar dados do usuário." });
-                }
-
-
-                _logger.LogInformation("Login validado com sucesso para: {FirebaseUid}", dto.FirebaseUid);
-                return Ok(new { 
-                    success = true, 
-                    user = user,
-                    message = "Login validado com sucesso." 
+                    success = false,
+                    user = (object)null
                 });
             }
-            catch (Exception ex)
+
+            return Ok(new
             {
-                _logger.LogError(ex, "Erro ao validar login para: {FirebaseUid}", dto.FirebaseUid);
-                return StatusCode(500, new { message = "Erro interno do servidor." });
-            }
+                success = true,
+                user = new
+                {
+                    user.Id,
+                    user.Name,
+                    user.Email,
+                    user.FirebaseUid
+                }
+            });
         }
 
 
+        //// 🔐 NOVA ROTA: Validação de login (sem JWT)
+        //[HttpPost("validate-login")]
+        //public async Task<IActionResult> ValidateLogin([FromBody] LoginValidationDto dto)
+        //{
+        //    if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+        //    try
+        //    {
+        //        // Verifica se o usuário existe no SQL
+        //        var userExists = await _service.UserExistsAsync(dto.FirebaseUid);
+
+        //        if (!userExists)
+        //        {
+        //            _logger.LogWarning("Tentativa de login com UID não cadastrado: {FirebaseUid}", dto.FirebaseUid);
+        //            return Unauthorized(new { message = "Usuário não cadastrado no sistema." });
+        //        }
+
+        //        // Busca dados completos do usuário
+        //        var user = await _service.GetUserByFirebaseUidAsync(dto.FirebaseUid);
+
+        //        if (user == null)
+        //        {
+        //            return Unauthorized(new { message = "Erro ao recuperar dados do usuário." });
+        //        }
+
+
+        //        _logger.LogInformation("Login validado com sucesso para: {FirebaseUid}", dto.FirebaseUid);
+        //        return Ok(new { 
+        //            success = true, 
+        //            user = user,
+        //            message = "Login validado com sucesso." 
+        //        });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Erro ao validar login para: {FirebaseUid}", dto.FirebaseUid);
+        //        return StatusCode(500, new { message = "Erro interno do servidor." });
+        //    }
+        //}
+
+
         // ✅ Mantido: Sincronização (usado no cadastro)
+        //[HttpPost("sync")]
+        //public async Task<IActionResult> SyncUser([FromBody] UserSyncDto dto)
+
+        //{
+        //    if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+        //    try
+        //    {
+        //        var me = await _service.CreateOrUpdateAsync(
+        //            dto.FirebaseUid,
+        //            dto.Email,
+        //            new UserUpdateDto { Name = dto.Name }
+        //        );
+
+        //        _logger.LogInformation("Usuário sincronizado: {FirebaseUid}", dto.FirebaseUid);
+        //        return Ok(new { 
+        //            success = true, 
+        //            user = me,
+        //            message = "Usuário sincronizado com sucesso." 
+        //        });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Erro ao sincronizar usuário: {FirebaseUid}", dto.FirebaseUid);
+        //        return StatusCode(500, new { message = "Erro ao sincronizar usuário." });
+        //    }
+        //}
         [HttpPost("sync")]
-        public async Task<IActionResult> SyncUser([FromBody] UserSyncDto dto)
-
+        public async Task<IActionResult> SyncUser([FromBody] UserSyncDto request)
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            if (string.IsNullOrEmpty(request.FirebaseUid) || string.IsNullOrEmpty(request.Email))
+                return BadRequest(new { message = "Dados inválidos." });
 
-            try
-            {
-                var me = await _service.CreateOrUpdateAsync(
-                    dto.FirebaseUid,
-                    dto.Email,
-                    new UserUpdateDto { Name = dto.Name }
-                );
+            // Verifica se já existe usuário no banco via serviço
+            var existingUser = await _service.GetUserByFirebaseUidAsync(request.FirebaseUid);
 
-                _logger.LogInformation("Usuário sincronizado: {FirebaseUid}", dto.FirebaseUid);
-                return Ok(new { 
-                    success = true, 
-                    user = me,
-                    message = "Usuário sincronizado com sucesso." 
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao sincronizar usuário: {FirebaseUid}", dto.FirebaseUid);
-                return StatusCode(500, new { message = "Erro ao sincronizar usuário." });
-            }
+            if (existingUser != null)
+                return Ok(existingUser);
+
+            // Usa CreateOrUpdateAsync (método existente no UserService) para criar o usuário
+            var createdUser = await _service.CreateOrUpdateAsync(
+                request.FirebaseUid,
+                request.Email,
+                new UserUpdateDto { Name = request.Name }
+            );
+
+            return Ok(createdUser);
         }
 
         // 🔍 Rota para verificar saúde do serviço
